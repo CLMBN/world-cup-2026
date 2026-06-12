@@ -300,6 +300,16 @@
       </div>
     </div>
 
+    <!-- Tomorrow's Games -->
+    <div>
+      <div class="section-label" id="tomorrow-label">⚽ Tomorrow's Games</div>
+      <div id="tomorrow-games">
+        <div class="today-empty">
+          <div class="empty-title">Loading tomorrow's schedule…</div>
+        </div>
+      </div>
+    </div>
+
     <!-- All Group Standings -->
     <div>
       <div class="section-label">📊 All Group Standings</div>
@@ -483,6 +493,7 @@ let STANDINGS = [
 
 let LIVE_SCORES = {};
 let TODAY_GAMES = [];
+let TOMORROW_GAMES = [];
 let ALL_GROUPS_DATA = [];
 
 // ── UTILITIES ────────────────────────────────────────────────────────────────
@@ -512,6 +523,12 @@ function fmtDateShort(utc) {
 
 function todayESPNDate() {
   const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function tomorrowESPNDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
 }
 
@@ -552,13 +569,16 @@ const ST_URL = 'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/stand
 
 async function fetchESPN() {
   try {
-    const todayDate = todayESPNDate();
-    const TODAY_SB_URL = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${todayDate}`;
+    const todayDate    = todayESPNDate();
+    const tomorrowDate = tomorrowESPNDate();
+    const TODAY_SB_URL    = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${todayDate}`;
+    const TOMORROW_SB_URL = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${tomorrowDate}`;
 
-    const [sbRes, stRes, todayRes] = await Promise.all([
+    const [sbRes, stRes, todayRes, tomorrowRes] = await Promise.all([
       fetch(SB_URL),
       fetch(ST_URL),
       fetch(TODAY_SB_URL),
+      fetch(TOMORROW_SB_URL),
     ]);
 
     if (sbRes.ok) {
@@ -573,6 +593,10 @@ async function fetchESPN() {
     if (todayRes.ok) {
       const td = await todayRes.json();
       parseTodayGames(td);
+    }
+    if (tomorrowRes.ok) {
+      const tm = await tomorrowRes.json();
+      parseTomorrowGames(tm);
     }
     hideAlert();
   } catch (e) {
@@ -619,6 +643,36 @@ function parseTodayGames(data) {
       homeScore: home.score,
       awayScore: away.score,
       state:     ev.status?.type?.state || 'pre',   // 'pre', 'in', 'post'
+      detail:    ev.status?.type?.shortDetail || '',
+      clock:     ev.status?.displayClock || '',
+      kickoffUTC: ev.date,
+      venue:     comp.venue?.fullName || '',
+      city:      comp.venue?.address?.city || '',
+      note:      comp.notes?.[0]?.headline || '',
+      tv:        tvList.join(' · '),
+    };
+  }).filter(Boolean);
+}
+
+function parseTomorrowGames(data) {
+  TOMORROW_GAMES = (data.events || []).map(ev => {
+    const comp = ev.competitions?.[0];
+    if (!comp) return null;
+    const home = comp.competitors?.find(c => c.homeAway === 'home');
+    const away = comp.competitors?.find(c => c.homeAway === 'away');
+    if (!home || !away) return null;
+
+    const hn = home.team?.displayName || home.team?.name || '?';
+    const an = away.team?.displayName || away.team?.name || '?';
+    const tvList = (comp.broadcasts || []).flatMap(b => b.names || []).filter(Boolean);
+
+    return {
+      id:        ev.id,
+      homeTeam:  hn,
+      awayTeam:  an,
+      homeScore: home.score,
+      awayScore: away.score,
+      state:     ev.status?.type?.state || 'pre',
       detail:    ev.status?.type?.shortDetail || '',
       clock:     ev.status?.displayClock || '',
       kickoffUTC: ev.date,
@@ -757,6 +811,91 @@ function renderTodayGames() {
 
     return `
       <div class="match-card ${isLive ? 'is-live' : isPre ? 'is-next' : ''}">
+        <div class="match-top">
+          <span>${noteText}</span>
+          ${badge}
+        </div>
+        <div class="match-body">
+          <div class="match-teams">
+            <div class="t-block home">
+              <span class="t-flag">${flagFor(g.homeTeam)}</span>
+              <span class="t-name ${g.homeTeam === 'Colombia' ? 'col' : ''}">${g.homeTeam}</span>
+            </div>
+            <div class="score-pair">
+              <span class="snum">${hs}</span>
+              <span class="ssep">:</span>
+              <span class="snum">${as_}</span>
+            </div>
+            <div class="t-block away">
+              <span class="t-flag">${flagFor(g.awayTeam)}</span>
+              <span class="t-name ${g.awayTeam === 'Colombia' ? 'col' : ''}">${g.awayTeam}</span>
+            </div>
+          </div>
+          <div class="match-meta">
+            ${cityText}
+            ${tvText}
+          </div>
+          <div class="match-streams">
+            <a href="https://www.telemundo.com/deportes" target="_blank" class="chip tele" title="Telemundo Spanish broadcast — free OTA">
+              📺 Telemundo <span class="free-tag">FREE</span>
+            </a>
+            <a href="https://www.peacocktv.com" target="_blank" class="chip cable" title="Stream Telemundo online via Peacock">
+              ▶ Peacock
+            </a>
+          </div>
+        </div>
+      </div>`;
+  }).join('') + `</div>`;
+}
+
+// ── RENDER: TOMORROW'S GAMES ─────────────────────────────────────────────────
+
+function renderTomorrowGames() {
+  const el = document.getElementById('tomorrow-games');
+  if (!el) return;
+
+  const tomorrowLabel = document.getElementById('tomorrow-label');
+  if (tomorrowLabel) {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const dateStr = d.toLocaleDateString('en-US', {
+      timeZone: 'America/New_York', weekday:'long', month:'long', day:'numeric'
+    });
+    tomorrowLabel.textContent = `⚽ Tomorrow — ${dateStr}`;
+  }
+
+  if (TOMORROW_GAMES.length === 0) {
+    el.innerHTML = `
+      <div class="today-empty">
+        <div class="empty-title">No games scheduled tomorrow</div>
+        <div style="margin-top:.4rem;font-size:.8rem">Check back later for the updated schedule.</div>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="matches-grid">` + TOMORROW_GAMES.map(g => {
+    const isLive  = g.state === 'in';
+    const isFinal = g.state === 'post';
+    const isCol   = g.homeTeam === 'Colombia' || g.awayTeam === 'Colombia';
+
+    let badge, hs, as_;
+    if (isLive) {
+      badge = `<span class="status-chip live">🔴 ${g.clock || g.detail || 'Live'}</span>`;
+      hs = g.homeScore ?? '0'; as_ = g.awayScore ?? '0';
+    } else if (isFinal) {
+      badge = `<span class="status-chip final">FT</span>`;
+      hs = g.homeScore ?? '–'; as_ = g.awayScore ?? '–';
+    } else {
+      badge = `<span class="status-chip sched">${fmtTimeET(g.kickoffUTC)}</span>`;
+      hs = '–'; as_ = '–';
+    }
+
+    const noteText = g.note || 'Group Stage';
+    const tvText   = g.tv   ? `<span class="meta-tag">📺 ${g.tv}</span>` : '';
+    const cityText = (g.city || g.venue) ? `<span class="meta-tag">📍 ${g.city || g.venue}</span>` : '';
+
+    return `
+      <div class="match-card ${isLive ? 'is-live' : 'is-next'}">
         <div class="match-top">
           <span>${noteText}</span>
           ${badge}
@@ -1062,6 +1201,7 @@ function tickCountdown() {
 async function refresh() {
   await fetchESPN();
   renderTodayGames();
+  renderTomorrowGames();
   renderAllGroupStandings();
   renderHero();
   renderMatches();
@@ -1079,6 +1219,7 @@ renderHero();
 renderMatches();
 renderStandings();
 renderTodayGames();
+renderTomorrowGames();
 updateTimestamp();
 refresh();
 
@@ -1089,7 +1230,7 @@ setInterval(tickCountdown, 1000);
 setInterval(refresh, 60000);
 
 // State transitions: every 30s
-setInterval(() => { renderHero(); renderMatches(); renderTodayGames(); }, 30000);
+setInterval(() => { renderHero(); renderMatches(); renderTodayGames(); renderTomorrowGames(); }, 30000);
 </script>
 
 </body>
