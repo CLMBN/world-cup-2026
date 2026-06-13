@@ -754,6 +754,15 @@ function hideAlert() {
   document.getElementById('alert-bar').style.display = 'none';
 }
 
+// ── PEACOCK APP LAUNCHER ──────────────────────────────────────────────────────
+
+function openPeacock(e) {
+  e.preventDefault();
+  const fallback = setTimeout(() => { window.location.href = 'https://www.peacocktv.com'; }, 2000);
+  window.addEventListener('blur', () => clearTimeout(fallback), { once: true });
+  window.location.href = 'peacocktv://';
+}
+
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────
 
 function switchTab(tab) {
@@ -839,7 +848,7 @@ function renderTodayGames() {
             <a href="https://www.telemundo.com/deportes" target="_blank" class="chip tele" title="Telemundo Spanish broadcast — free OTA">
               📺 Telemundo <span class="free-tag">FREE</span>
             </a>
-            <a href="https://www.peacocktv.com" target="_blank" class="chip cable" title="Stream Telemundo online via Peacock">
+            <a href="https://www.peacocktv.com" onclick="openPeacock(event)" class="chip cable" title="Stream Telemundo online via Peacock — opens app if installed">
               ▶ Peacock
             </a>
           </div>
@@ -924,7 +933,7 @@ function renderTomorrowGames() {
             <a href="https://www.telemundo.com/deportes" target="_blank" class="chip tele" title="Telemundo Spanish broadcast — free OTA">
               📺 Telemundo <span class="free-tag">FREE</span>
             </a>
-            <a href="https://www.peacocktv.com" target="_blank" class="chip cable" title="Stream Telemundo online via Peacock">
+            <a href="https://www.peacocktv.com" onclick="openPeacock(event)" class="chip cable" title="Stream Telemundo online via Peacock — opens app if installed">
               ▶ Peacock
             </a>
           </div>
@@ -1147,7 +1156,7 @@ function renderStreams() {
       </div>
       <div class="chips">
         ${m.streams.map(s => `
-          <a href="${s.url}" target="_blank" class="chip ${s.type}" title="${s.note}">
+          <a href="${s.url}" ${s.name === 'Peacock' ? 'onclick="openPeacock(event)"' : 'target="_blank"'} class="chip ${s.type}" title="${s.note}${s.name === 'Peacock' ? ' — opens app if installed' : ''}">
             ▶ ${s.name}${s.type === 'free' ? ' <span class="free-tag">FREE</span>' : ''}
           </a>`).join('')}
       </div>
