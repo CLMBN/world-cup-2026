@@ -410,7 +410,7 @@ const FLAGS = {
   'qatar': '🇶🇦', 'romania': '🇷🇴', 'saudi arabia': '🇸🇦',
   'senegal': '🇸🇳', 'serbia': '🇷🇸', 'slovenia': '🇸🇮',
   'south korea': '🇰🇷', 'korea republic': '🇰🇷', 'spain': '🇪🇸',
-  'switzerland': '🇨🇭', 'turkey': '🇹🇷', 'turkiye': '🇹🇷',
+  'switzerland': '🇨🇭', 'turkey': '🇹🇷', 'turkiye': '🇹🇷', 'türkiye': '🇹🇷',
   'ukraine': '🇺🇦', 'united states': '🇺🇸', 'usa': '🇺🇸',
   'uruguay': '🇺🇾', 'uzbekistan': '🇺🇿', 'venezuela': '🇻🇪',
   'wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'panama': '🇵🇦', 'jamaica': '🇯🇲',
@@ -425,6 +425,21 @@ const FLAGS = {
   'republic of ireland': '🇮🇪', 'north korea': '🇰🇵',
   'dpr korea': '🇰🇵', 'philippines': '🇵🇭', 'vietnam': '🇻🇳',
   'new caledonia': '🇳🇨', 'tajikistan': '🇹🇯', 'kyrgyzstan': '🇰🇬',
+  'curaçao': '🇨🇼', 'curacao': '🇨🇼',
+  'trinidad & tobago': '🇹🇹', 'trinidad and tobago': '🇹🇹',
+  'haiti': '🇭🇹', 'nicaragua': '🇳🇮', 'dominican republic': '🇩🇴',
+  'oman': '🇴🇲', 'jordan': '🇯🇴', 'palestine': '🇵🇸',
+  'syria': '🇸🇾', 'india': '🇮🇳', 'myanmar': '🇲🇲',
+  'ethiopia': '🇪🇹', 'guinea': '🇬🇳', 'comoros': '🇰🇲',
+  'liberia': '🇱🇷', 'namibia': '🇳🇦', 'mozambique': '🇲🇿',
+  'guinea-bissau': '🇬🇼', 'mauritania': '🇲🇷', 'gambia': '🇬🇲',
+  'sudan': '🇸🇩', 'rwanda': '🇷🇼', 'sierra leone': '🇸🇱',
+  'central african republic': '🇨🇫', 'equatorial guinea': '🇬🇶',
+  'malawi': '🇲🇼', 'zimbabwe': '🇿🇼', 'botswana': '🇧🇼',
+  'lesotho': '🇱🇸', 'eswatini': '🇸🇿', 'swaziland': '🇸🇿',
+  'north macedonia': '🇲🇰', 'albania': '🇦🇱', 'bulgaria': '🇧🇬',
+  'slovakia': '🇸🇰', 'finland': '🇫🇮', 'sweden': '🇸🇪',
+  'norway': '🇳🇴', 'denmark': '🇩🇰', 'austria': '🇦🇹',
 };
 
 function flagFor(name) {
@@ -567,6 +582,26 @@ function countdown(utc) {
   };
 }
 
+function parseGoalDetails(details, homeTeamLower, awayTeamLower) {
+  return (details || [])
+    .filter(d => d.scoringPlay === true)
+    .map(d => {
+      const spTeam = (d.team?.displayName || d.team?.name || '').toLowerCase();
+      const side = (awayTeamLower && spTeam === awayTeamLower) ? 'away' : 'home';
+      const rawClock = d.clock?.displayValue || '';
+      const clock = /^\d+:\d+$/.test(rawClock) ? rawClock.split(':')[0] + "'" : rawClock;
+      const involved = d.athletesInvolved || [];
+      const scorerName = involved[0]?.displayName || involved[0]?.shortName || involved[0]?.fullName || '?';
+      return {
+        side,
+        name: shortenName(scorerName),
+        clock,
+        isOG: d.ownGoal === true || (d.type?.text || '').toLowerCase().includes('own'),
+        isPK: d.penaltyKick === true || (d.type?.text || '').toLowerCase().includes('penalty'),
+      };
+    });
+}
+
 function shortenName(full) {
   if (!full || full === '?') return full;
   const parts = full.trim().split(/\s+/);
@@ -641,7 +676,11 @@ function parseSummary(data, homeKeyLower, awayKeyLower) {
     statsByTeam[side] = s;
   });
 
-  MATCH_SUMMARIES[`${homeKeyLower}|${awayKeyLower}`] = { scorers, statsByTeam };
+  const key = `${homeKeyLower}|${awayKeyLower}`;
+  // Merge: preserve scorers from scorecard parsing, add/update stats from summary
+  if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {} };
+  if (scorers.length > 0) MATCH_SUMMARIES[key].scorers = scorers; // only override if we got scorers
+  MATCH_SUMMARIES[key].statsByTeam = statsByTeam;
 }
 
 function summaryForGame(homeTeam, awayTeam) {
@@ -773,6 +812,16 @@ function parseScoreboard(data) {
       detail:    ev.status?.type?.shortDetail || '',
       clock:     ev.status?.displayClock || '',
     };
+
+    // For completed games, extract goal scorers from competition details
+    if (ev.status?.type?.state === 'post') {
+      const key = `${hn}|${an}`;
+      const scorers = parseGoalDetails(comp.details, hn, an);
+      if (scorers.length > 0) {
+        if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {} };
+        MATCH_SUMMARIES[key].scorers = scorers;
+      }
+    }
   });
 }
 
@@ -788,13 +837,13 @@ function parseTodayGames(data) {
     const an = away.team?.displayName || away.team?.name || '?';
     const tvList = (comp.broadcasts || []).flatMap(b => b.names || []).filter(Boolean);
 
-    return {
+    const game = {
       id:        ev.id,
       homeTeam:  hn,
       awayTeam:  an,
       homeScore: home.score,
       awayScore: away.score,
-      state:     ev.status?.type?.state || 'pre',   // 'pre', 'in', 'post'
+      state:     ev.status?.type?.state || 'pre',
       detail:    ev.status?.type?.shortDetail || '',
       clock:     ev.status?.displayClock || '',
       kickoffUTC: ev.date,
@@ -803,6 +852,18 @@ function parseTodayGames(data) {
       note:      comp.notes?.[0]?.headline || '',
       tv:        tvList.join(' · '),
     };
+
+    // Extract scorers from details for completed games
+    if (game.state === 'post') {
+      const key = `${hn.toLowerCase()}|${an.toLowerCase()}`;
+      const scorers = parseGoalDetails(comp.details, hn.toLowerCase(), an.toLowerCase());
+      if (scorers.length > 0) {
+        if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {} };
+        MATCH_SUMMARIES[key].scorers = scorers;
+      }
+    }
+
+    return game;
   }).filter(Boolean);
 }
 
