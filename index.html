@@ -443,7 +443,7 @@ const FLAGS = {
 };
 
 function flagFor(name) {
-  return FLAGS[(name || '').toLowerCase()] || '🏴';
+  return FLAGS[(name || '').toLowerCase().normalize('NFC')] || '🏴';
 }
 
 // ── STATIC DATA ──────────────────────────────────────────────────────────────
@@ -636,37 +636,32 @@ function parseSummary(data, homeKeyLower, awayKeyLower) {
   const homeBoxName = (homeBoxTeam?.team?.displayName || '').toLowerCase();
   const awayBoxName = (awayBoxTeam?.team?.displayName || '').toLowerCase();
 
-  const scorers = [];
-  (data.scoringPlays || []).forEach(sp => {
-    const spTeamName = (sp.team?.displayName || sp.team?.name || '').toLowerCase();
+  // Primary: header.competitions[0].details — ESPN summary reliably has athletesInvolved here
+  const headerDetails = data.header?.competitions?.[0]?.details || [];
+  let scorers = parseGoalDetails(headerDetails, homeKeyLower, awayKeyLower);
 
-    // Determine home/away by comparing with boxscore names, fall back to key params
-    let side = 'home';
-    if (spTeamName && ((awayBoxName && spTeamName === awayBoxName) || spTeamName === awayKeyLower)) {
-      side = 'away';
-    }
-
-    // ESPN uses athletesInvolved on some endpoints, participants on others
-    const involved = sp.athletesInvolved || [];
-    const participants = sp.participants || [];
-    const scorerObj = involved[0]
-      || participants.find(p => p.type === 'scorer' || p.type === 'goalscorer')?.athlete
-      || participants[0]?.athlete;
-    const scorerName = scorerObj?.displayName || scorerObj?.shortName || scorerObj?.fullName || '?';
-
-    // Clock: convert "23:00" → "23'" ; leave "23'" as-is
-    const rawClock = sp.clock?.displayValue || '';
-    const clock = /^\d+:\d+$/.test(rawClock) ? rawClock.split(':')[0] + "'" : rawClock;
-
-    const typeText = (sp.type?.text || '').toLowerCase();
-    scorers.push({
-      side,
-      name: shortenName(scorerName),
-      clock,
-      isOG: typeText.includes('own'),
-      isPK: typeText.includes('penalty'),
-    });
-  });
+  // Fallback: scoringPlays (structure varies by endpoint/league)
+  if (scorers.length === 0) {
+    scorers = (data.scoringPlays || []).map(sp => {
+      const spTeamName = (sp.team?.displayName || sp.team?.name || '').toLowerCase();
+      let side = 'home';
+      if (spTeamName && ((awayBoxName && spTeamName === awayBoxName) || spTeamName === awayKeyLower)) {
+        side = 'away';
+      }
+      const involved = sp.athletesInvolved || [];
+      const participants = sp.participants || [];
+      const pType = p => typeof p.type === 'string' ? p.type : (p.type?.name || p.type?.description || '');
+      const scorerP = participants.find(p => pType(p).toLowerCase().includes('scor')) || participants[0];
+      const scorerObj = involved[0] || scorerP?.athlete || scorerP;
+      const scorerName = scorerObj?.displayName || scorerObj?.shortName || scorerObj?.fullName;
+      if (!scorerName) return null;
+      const rawClock = sp.clock?.displayValue || '';
+      const clock = /^\d+:\d+$/.test(rawClock) ? rawClock.split(':')[0] + "'" : rawClock;
+      const typeText = (sp.type?.text || '').toLowerCase();
+      return { side, name: shortenName(scorerName), clock,
+               isOG: typeText.includes('own'), isPK: typeText.includes('penalty') };
+    }).filter(Boolean);
+  }
 
   const statsByTeam = {};
   boxTeams.forEach(t => {
@@ -677,9 +672,8 @@ function parseSummary(data, homeKeyLower, awayKeyLower) {
   });
 
   const key = `${homeKeyLower}|${awayKeyLower}`;
-  // Merge: preserve scorers from scorecard parsing, add/update stats from summary
   if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {} };
-  if (scorers.length > 0) MATCH_SUMMARIES[key].scorers = scorers; // only override if we got scorers
+  if (scorers.length > 0) MATCH_SUMMARIES[key].scorers = scorers;
   MATCH_SUMMARIES[key].statsByTeam = statsByTeam;
 }
 
