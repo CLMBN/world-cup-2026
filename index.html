@@ -247,6 +247,13 @@
   @media (max-width: 640px) {
     .hero { grid-template-columns: 1fr; }
     .stream-row { grid-template-columns: 1fr; }
+    main { padding: 1rem .75rem; }
+    .card { padding: .85rem .75rem; }
+    .standings-tbl { font-size: .73rem; }
+    .standings-tbl th { padding: .3rem .2rem; }
+    .standings-tbl td { padding: .45rem .2rem; }
+    .t-cell { gap: .25rem; }
+    .pos-num { width: 18px; height: 18px; font-size: .62rem; }
   }
 
   /* ── DIVIDER ────────────────────────────────────── */
@@ -1746,7 +1753,7 @@ function renderStandings() {
   document.getElementById('standings').innerHTML = `
     <thead>
       <tr>
-        <th style="width:28px">#</th>
+        <th style="width:22px">#</th>
         <th>${T[LANG].stTeam}</th>
         <th>${T[LANG].stGP}</th><th>${T[LANG].stW}</th><th>${T[LANG].stD}</th><th>${T[LANG].stL}</th><th>${T[LANG].stGF}</th><th>${T[LANG].stGA}</th><th>${T[LANG].stGD}</th><th>${T[LANG].stPts}</th>
       </tr>
