@@ -594,15 +594,38 @@ async function fetchSummariesFromEvents(events) {
 }
 
 function parseSummary(data, homeKeyLower, awayKeyLower) {
+  // Use boxscore to reliably identify home vs away team names
+  const boxTeams = data.boxscore?.teams || [];
+  const homeBoxTeam = boxTeams.find(t => t.homeAway === 'home');
+  const awayBoxTeam = boxTeams.find(t => t.homeAway === 'away');
+  const homeBoxName = (homeBoxTeam?.team?.displayName || '').toLowerCase();
+  const awayBoxName = (awayBoxTeam?.team?.displayName || '').toLowerCase();
+
   const scorers = [];
   (data.scoringPlays || []).forEach(sp => {
-    const teamName = sp.team?.displayName || '';
-    const clock    = sp.clock?.displayValue || '';
+    const spTeamName = (sp.team?.displayName || sp.team?.name || '').toLowerCase();
+
+    // Determine home/away by comparing with boxscore names, fall back to key params
+    let side = 'home';
+    if (spTeamName && ((awayBoxName && spTeamName === awayBoxName) || spTeamName === awayKeyLower)) {
+      side = 'away';
+    }
+
+    // ESPN uses athletesInvolved on some endpoints, participants on others
     const involved = sp.athletesInvolved || [];
-    const scorerName = involved[0]?.displayName || '?';
-    const typeText   = (sp.type?.text || '').toLowerCase();
+    const participants = sp.participants || [];
+    const scorerObj = involved[0]
+      || participants.find(p => p.type === 'scorer' || p.type === 'goalscorer')?.athlete
+      || participants[0]?.athlete;
+    const scorerName = scorerObj?.displayName || scorerObj?.shortName || scorerObj?.fullName || '?';
+
+    // Clock: convert "23:00" → "23'" ; leave "23'" as-is
+    const rawClock = sp.clock?.displayValue || '';
+    const clock = /^\d+:\d+$/.test(rawClock) ? rawClock.split(':')[0] + "'" : rawClock;
+
+    const typeText = (sp.type?.text || '').toLowerCase();
     scorers.push({
-      team: teamName,
+      side,
       name: shortenName(scorerName),
       clock,
       isOG: typeText.includes('own'),
@@ -611,11 +634,11 @@ function parseSummary(data, homeKeyLower, awayKeyLower) {
   });
 
   const statsByTeam = {};
-  (data.boxscore?.teams || []).forEach(t => {
-    const tName = (t.team?.displayName || '').toLowerCase();
+  boxTeams.forEach(t => {
+    const side = t.homeAway === 'home' ? 'home' : 'away';
     const s = {};
     (t.statistics || []).forEach(st => { s[st.name] = st.displayValue ?? String(st.value); });
-    statsByTeam[tName] = s;
+    statsByTeam[side] = s;
   });
 
   MATCH_SUMMARIES[`${homeKeyLower}|${awayKeyLower}`] = { scorers, statsByTeam };
@@ -628,11 +651,11 @@ function summaryForGame(homeTeam, awayTeam) {
 function matchRecapHtml(homeTeam, awayTeam, summary) {
   if (!summary) return '';
   const { scorers, statsByTeam } = summary;
-  const hs  = statsByTeam[homeTeam.toLowerCase()] || {};
-  const as_ = statsByTeam[awayTeam.toLowerCase()] || {};
+  const hs  = statsByTeam['home'] || {};
+  const as_ = statsByTeam['away'] || {};
 
-  const hGoals = scorers.filter(s => s.team.toLowerCase() === homeTeam.toLowerCase());
-  const aGoals = scorers.filter(s => s.team.toLowerCase() === awayTeam.toLowerCase());
+  const hGoals = scorers.filter(s => s.side === 'home');
+  const aGoals = scorers.filter(s => s.side === 'away');
 
   const goalStr = goals => goals.map(g =>
     `${g.name} ${g.clock}${g.isPK ? ' <span class="goal-type">pen</span>' : g.isOG ? ' <span class="goal-type">og</span>' : ''}`
