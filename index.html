@@ -591,7 +591,8 @@ function parseGoalDetails(details, homeTeamLower, awayTeamLower) {
       const rawClock = d.clock?.displayValue || '';
       const clock = /^\d+:\d+$/.test(rawClock) ? rawClock.split(':')[0] + "'" : rawClock;
       const involved = d.athletesInvolved || [];
-      const scorerName = involved[0]?.displayName || involved[0]?.shortName || involved[0]?.fullName || '?';
+      const scorerName = involved[0]?.displayName || involved[0]?.shortName || involved[0]?.fullName;
+      if (!scorerName) return null;
       return {
         side,
         name: shortenName(scorerName),
@@ -599,7 +600,7 @@ function parseGoalDetails(details, homeTeamLower, awayTeamLower) {
         isOG: d.ownGoal === true || (d.type?.text || '').toLowerCase().includes('own'),
         isPK: d.penaltyKick === true || (d.type?.text || '').toLowerCase().includes('penalty'),
       };
-    });
+    }).filter(Boolean);
 }
 
 function shortenName(full) {
@@ -674,7 +675,8 @@ function parseSummary(data, homeKeyLower, awayKeyLower) {
 
   const key = `${homeKeyLower}|${awayKeyLower}`;
   if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {} };
-  if (scorers.length > 0) MATCH_SUMMARIES[key].scorers = scorers;
+  const hasNamedScorers = MATCH_SUMMARIES[key].scorers.some(s => s.name && s.name !== '?');
+  if (scorers.length > 0 && !hasNamedScorers) MATCH_SUMMARIES[key].scorers = scorers;
   MATCH_SUMMARIES[key].statsByTeam = statsByTeam;
 }
 
