@@ -250,6 +250,52 @@
   /* ── DIVIDER ────────────────────────────────────── */
   .stream-divider { border: none; border-top: 1px solid var(--border); margin: .6rem 0; }
 
+  /* ── DATE SLIDER ────────────────────────────────── */
+  .date-slider-wrap {
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    margin: -1rem -1rem .75rem;
+  }
+  .date-slider-wrap::-webkit-scrollbar { display: none; }
+  .date-track { display: flex; gap: .2rem; padding: .55rem .75rem; width: max-content; }
+  .date-pill {
+    display: flex; flex-direction: column; align-items: center;
+    padding: .4rem .8rem; border-radius: 8px; border: 1px solid transparent;
+    background: none; color: var(--muted); cursor: pointer;
+    font-family: inherit; transition: all .15s; min-width: 50px;
+  }
+  .date-pill:hover { background: var(--surface2); color: var(--text); }
+  .date-pill.active { background: var(--col-yellow); color: #000; font-weight: 700; }
+  .date-pill .dp-dow { font-size: .58rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .1rem; }
+  .date-pill .dp-md  { font-size: .8rem; }
+
+  /* ── SCORES LIST ─────────────────────────────────── */
+  .scores-list { display: flex; flex-direction: column; gap: .45rem; }
+  .score-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; cursor: pointer; user-select: none;
+  }
+  .score-row:hover .score-header { background: var(--surface2); }
+  .score-header {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: .75rem; align-items: center; padding: .7rem 1rem;
+  }
+  .score-teams { display: flex; flex-direction: column; gap: .35rem; }
+  .score-team { display: flex; align-items: center; gap: .5rem; font-size: .88rem; font-weight: 600; }
+  .score-team .t-flag { font-size: 1.1rem; }
+  .score-num { margin-left: auto; font-size: 1.15rem; font-weight: 900; min-width: 1.2ch; text-align: right; font-variant-numeric: tabular-nums; }
+  .score-right { display: flex; flex-direction: column; align-items: flex-end; gap: .35rem; }
+  .score-chevron { font-size: .65rem; color: var(--muted); }
+  .score-note { font-size: .62rem; color: var(--muted); margin-top: -.1rem; }
+  .score-detail { padding: .75rem 1rem; border-top: 1px solid var(--border); }
+  .espn-link {
+    display: inline-flex; align-items: center; gap: .35rem; margin-top: .65rem;
+    font-size: .72rem; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 6px; padding: .3rem .7rem;
+    transition: border-color .15s, color .15s;
+  }
+  .espn-link:hover { color: var(--col-yellow); border-color: var(--col-yellow); }
+
   /* ── MATCH RECAP (post-game stats) ──────────────── */
   .match-recap { margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--border); }
   .recap-goals { font-size: .72rem; color: var(--text); line-height: 1.6; }
@@ -290,6 +336,7 @@
   <div class="tabs-nav">
     <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">🌍 Tournament</button>
     <button class="tab-btn" data-tab="colombia" onclick="switchTab('colombia')">🇨🇴 Colombia</button>
+    <button class="tab-btn" data-tab="scores" onclick="switchTab('scores')">📅 Scores</button>
   </div>
 </nav>
 
@@ -385,6 +432,20 @@
       <div class="news-grid" id="news"></div>
     </div>
 
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- SCORES TAB                                     -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div id="tab-scores" class="tab-content">
+    <div class="date-slider-wrap">
+      <div class="date-track" id="date-track"></div>
+    </div>
+    <div id="scores-list">
+      <div class="today-empty">
+        <div class="empty-title">Select a date above</div>
+      </div>
+    </div>
   </div>
 
 </main>
@@ -971,6 +1032,192 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+  if (tab === 'scores') initScoresTab();
+}
+
+// ── SCORES TAB ───────────────────────────────────────────────────────────────
+
+let SCORES_DATE    = todayESPNDate();
+let SCORES_GAMES   = [];
+let SCORES_EXPANDED = new Set();
+let SCORES_LOADED  = false;
+
+function espnSlug(name) {
+  return (name || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function espnMatchUrl(eventId, homeTeam, awayTeam) {
+  return `https://www.espn.com/soccer/match/_/gameId/${eventId}/${espnSlug(awayTeam)}-${espnSlug(homeTeam)}`;
+}
+
+function wcDates() {
+  const out = [];
+  const d = new Date('2026-06-11T12:00:00Z');
+  const end = new Date('2026-07-20T12:00:00Z');
+  while (d < end) {
+    const y = d.getUTCFullYear(), m = d.getUTCMonth()+1, day = d.getUTCDate();
+    out.push(`${y}${String(m).padStart(2,'0')}${String(day).padStart(2,'0')}`);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+function fmtDatePill(ds) {
+  const y = +ds.slice(0,4), m = +ds.slice(4,6)-1, d = +ds.slice(6,8);
+  const dt = new Date(y, m, d);
+  return {
+    dow: dt.toLocaleDateString('en-US', { weekday:'short' }),
+    md:  dt.toLocaleDateString('en-US', { month:'short', day:'numeric' }),
+  };
+}
+
+function buildDateTrack() {
+  const track = document.getElementById('date-track');
+  if (!track || track.children.length) return;
+  track.innerHTML = wcDates().map(ds => {
+    const { dow, md } = fmtDatePill(ds);
+    return `<button class="date-pill${ds === SCORES_DATE ? ' active' : ''}" id="dp-${ds}"
+      onclick="selectScoreDate('${ds}')">${'<span class="dp-dow">'}${dow}</span><span class="dp-md">${md}</span></button>`;
+  }).join('');
+}
+
+function scrollActivePill() {
+  requestAnimationFrame(() => {
+    const el = document.getElementById(`dp-${SCORES_DATE}`);
+    if (el) el.scrollIntoView({ block: 'nearest', inline: 'center' });
+  });
+}
+
+async function initScoresTab() {
+  buildDateTrack();
+  scrollActivePill();
+  if (!SCORES_LOADED || SCORES_DATE !== todayESPNDate()) {
+    await loadScoreDate(SCORES_DATE);
+  }
+}
+
+async function selectScoreDate(ds) {
+  SCORES_DATE = ds;
+  SCORES_EXPANDED = new Set();
+  document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+  const pill = document.getElementById(`dp-${ds}`);
+  if (pill) { pill.classList.add('active'); pill.scrollIntoView({ block:'nearest', inline:'center' }); }
+  document.getElementById('scores-list').innerHTML =
+    `<div class="today-empty"><div class="empty-title">Loading…</div></div>`;
+  await loadScoreDate(ds);
+}
+
+async function loadScoreDate(ds) {
+  try {
+    const res = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${ds}`
+    );
+    if (!res.ok) { renderScoresList(); return; }
+    const data = await res.json();
+    SCORES_GAMES = parseScoreGames(data);
+    SCORES_LOADED = true;
+    const completed = (data.events || []).filter(ev => ev.status?.type?.state === 'post');
+    await fetchSummariesFromEvents(completed);
+  } catch(_) {}
+  renderScoresList();
+}
+
+function parseScoreGames(data) {
+  return (data.events || []).map(ev => {
+    const comp = ev.competitions?.[0];
+    if (!comp) return null;
+    const home = comp.competitors?.find(c => c.homeAway === 'home');
+    const away = comp.competitors?.find(c => c.homeAway === 'away');
+    if (!home || !away) return null;
+    const hn = home.team?.displayName || home.team?.name || '?';
+    const an = away.team?.displayName || away.team?.name || '?';
+    if (ev.status?.type?.state === 'post') {
+      const key = `${hn.toLowerCase()}|${an.toLowerCase()}`;
+      const sc = parseGoalDetails(comp.details, hn.toLowerCase(), an.toLowerCase());
+      if (sc.length > 0) {
+        if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers:[], statsByTeam:{} };
+        if (!MATCH_SUMMARIES[key].scorers.some(s => s.name && s.name !== '?'))
+          MATCH_SUMMARIES[key].scorers = sc;
+      }
+    }
+    return {
+      id:         ev.id,
+      homeTeam:   hn,
+      awayTeam:   an,
+      homeScore:  home.score,
+      awayScore:  away.score,
+      state:      ev.status?.type?.state || 'pre',
+      detail:     ev.status?.type?.shortDetail || '',
+      clock:      ev.status?.displayClock || '',
+      kickoffUTC: ev.date,
+      note:       comp.notes?.[0]?.headline || '',
+    };
+  }).filter(Boolean);
+}
+
+function toggleScore(gameId) {
+  SCORES_EXPANDED.has(gameId) ? SCORES_EXPANDED.delete(gameId) : SCORES_EXPANDED.add(gameId);
+  renderScoresList();
+}
+
+function renderScoresList() {
+  const el = document.getElementById('scores-list');
+  if (!el) return;
+  if (SCORES_GAMES.length === 0) {
+    el.innerHTML = `<div class="today-empty"><div class="empty-title">No games scheduled</div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="scores-list">` + SCORES_GAMES.map(g => {
+    const isLive  = g.state === 'in';
+    const isFinal = g.state === 'post';
+    const isPre   = g.state === 'pre';
+    const open    = SCORES_EXPANDED.has(g.id);
+
+    const badge = isLive  ? `<span class="status-chip live">🔴 ${g.clock || g.detail || 'Live'}</span>`
+                : isFinal ? `<span class="status-chip final">FT</span>`
+                :           `<span class="status-chip sched">${fmtTimeET(g.kickoffUTC)}</span>`;
+
+    const showScore = isLive || isFinal;
+    const hs  = showScore ? (g.homeScore ?? '–') : '';
+    const as_ = showScore ? (g.awayScore ?? '–') : '';
+
+    let detail = '';
+    if (open) {
+      const espnUrl = espnMatchUrl(g.id, g.homeTeam, g.awayTeam);
+      const label   = isLive ? 'Live match stats' : isPre ? 'Match preview' : 'Full match stats';
+      const recap   = isFinal ? matchRecapHtml(g.homeTeam, g.awayTeam, summaryForGame(g.homeTeam, g.awayTeam)) : '';
+      detail = `<div class="score-detail">
+        ${recap}
+        <a href="${espnUrl}" target="_blank" class="espn-link" onclick="event.stopPropagation()">
+          📊 ${label} on ESPN →
+        </a>
+      </div>`;
+    }
+
+    return `<div class="score-row" onclick="toggleScore('${g.id}')">
+      <div class="score-header">
+        <div class="score-teams">
+          <div class="score-team">
+            <span class="t-flag">${flagFor(g.homeTeam)}</span>
+            <span>${g.homeTeam}</span>
+            ${hs !== '' ? `<span class="score-num">${hs}</span>` : ''}
+          </div>
+          <div class="score-team">
+            <span class="t-flag">${flagFor(g.awayTeam)}</span>
+            <span>${g.awayTeam}</span>
+            ${as_ !== '' ? `<span class="score-num">${as_}</span>` : ''}
+          </div>
+        </div>
+        <div class="score-right">
+          ${badge}
+          <span class="score-chevron">${open ? '▲' : '▼'}</span>
+        </div>
+      </div>
+      ${detail}
+    </div>`;
+  }).join('') + `</div>`;
 }
 
 // ── RENDER: TODAY'S GAMES ─────────────────────────────────────────────────────
