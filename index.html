@@ -41,11 +41,10 @@
     border-bottom: 1px solid var(--border);
     padding: 1rem 1.5rem;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: .55rem;
   }
+  .header-top { display: flex; align-items: center; justify-content: space-between; }
   .header-left { display: flex; align-items: center; gap: .75rem; }
   .flag-icon { font-size: 2.25rem; line-height: 1; }
   .header-left h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -.02em; }
@@ -248,7 +247,6 @@
   @media (max-width: 640px) {
     .hero { grid-template-columns: 1fr; }
     .stream-row { grid-template-columns: 1fr; }
-    header { flex-direction: column; align-items: flex-start; }
   }
 
   /* ── DIVIDER ────────────────────────────────────── */
@@ -322,20 +320,22 @@
 <div class="flag-stripe"></div>
 
 <header>
-  <div class="header-left">
-    <span class="flag-icon">⚽</span>
-    <div>
-      <h1>World Cup 2026</h1>
-      <div class="sub">USA · Canada · Mexico</div>
+  <div class="header-top">
+    <div class="header-left">
+      <span class="flag-icon">⚽</span>
+      <div>
+        <h1>World Cup 2026</h1>
+        <div class="sub">USA · Canada · Mexico</div>
+      </div>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="lang-en" onclick="setLang('en')">🇺🇸 USA</button>
+      <button class="lang-btn" id="lang-es" onclick="setLang('es')">🇨🇴 COL</button>
     </div>
   </div>
   <div class="header-right">
     <span id="live-indicator"><span class="live-dot"></span>Live</span>
     <span id="last-updated"></span>
-    <div class="lang-toggle">
-      <button class="lang-btn active" id="lang-en" onclick="setLang('en')">EN</button>
-      <button class="lang-btn" id="lang-es" onclick="setLang('es')">ES</button>
-    </div>
     <button class="btn" id="btn-refresh" onclick="refresh()">↻ Refresh</button>
   </div>
 </header>
