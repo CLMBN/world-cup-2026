@@ -619,7 +619,8 @@ async function fetchSummariesFromEvents(events) {
     if (!home || !away) return;
     const hn = (home.team?.displayName || '').toLowerCase();
     const an = (away.team?.displayName || '').toLowerCase();
-    if (MATCH_SUMMARIES[`${hn}|${an}`]) return;
+    const existing = MATCH_SUMMARIES[`${hn}|${an}`];
+    if (existing && Object.keys(existing.statsByTeam || {}).length > 0) return;
     try {
       const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${ev.id}`);
       if (!res.ok) return;
