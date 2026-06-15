@@ -63,6 +63,10 @@
   .btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text);
          padding: .3rem .7rem; border-radius: 6px; font-size: .72rem; cursor: pointer; transition: background .15s; }
   .btn:hover { background: var(--border); }
+  .lang-toggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .lang-btn { background: none; border: none; color: var(--muted); padding: .3rem .55rem; font-size: .72rem; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
+  .lang-btn.active { background: var(--col-yellow); color: #000; }
+  .lang-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
 
   /* ── TABS ────────────────────────────────────────── */
   .tabs-bar {
@@ -328,7 +332,11 @@
   <div class="header-right">
     <span id="live-indicator"><span class="live-dot"></span>Live</span>
     <span id="last-updated"></span>
-    <button class="btn" onclick="refresh()">↻ Refresh</button>
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="lang-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="lang-es" onclick="setLang('es')">ES</button>
+    </div>
+    <button class="btn" id="btn-refresh" onclick="refresh()">↻ Refresh</button>
   </div>
 </header>
 
@@ -375,7 +383,7 @@
 
     <!-- All Group Standings -->
     <div>
-      <div class="section-label">📊 All Group Standings</div>
+      <div class="section-label" id="label-all-standings">📊 All Group Standings</div>
       <div id="all-groups">
         <div class="today-empty">
           <div class="empty-title">Loading standings…</div>
@@ -395,13 +403,13 @@
 
     <!-- MATCHES -->
     <div>
-      <div class="section-label">📅 Group Stage Schedule</div>
+      <div class="section-label" id="label-col-schedule">📅 Group Stage Schedule</div>
       <div class="matches-grid" id="matches"></div>
     </div>
 
     <!-- STANDINGS -->
     <div>
-      <div class="section-label">📊 Group K Standings</div>
+      <div class="section-label" id="label-col-standings">📊 Group K Standings</div>
       <div class="card">
         <table class="standings-tbl" id="standings"></table>
       </div>
@@ -409,7 +417,7 @@
 
     <!-- STREAMS -->
     <div>
-      <div class="section-label">📺 How to Watch Colombia — Free &amp; Paid</div>
+      <div class="section-label" id="label-how-to-watch">📺 How to Watch Colombia — Free &amp; Paid</div>
       <div class="card">
         <div class="streams-list" id="streams"></div>
       </div>
@@ -417,9 +425,9 @@
 
     <!-- SQUAD -->
     <div>
-      <div class="section-label">⚽ Key Players</div>
+      <div class="section-label" id="label-key-players">⚽ Key Players</div>
       <div class="squad-grid" id="squad"></div>
-      <p style="font-size:.7rem;color:var(--muted);margin-top:.75rem">
+      <p id="squad-footer" style="font-size:.7rem;color:var(--muted);margin-top:.75rem">
         Full 26-man squad on
         <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams/colombia/team-news"
            target="_blank" style="color:var(--col-yellow)">FIFA.com →</a>
@@ -428,7 +436,7 @@
 
     <!-- NEWS -->
     <div>
-      <div class="section-label">📰 News &amp; Resources</div>
+      <div class="section-label" id="label-news">📰 News &amp; Resources</div>
       <div class="news-grid" id="news"></div>
     </div>
 
@@ -443,7 +451,7 @@
     </div>
     <div id="scores-list">
       <div class="today-empty">
-        <div class="empty-title">Select a date above</div>
+        <div class="empty-title" id="scores-placeholder">Select a date above</div>
       </div>
     </div>
   </div>
@@ -451,6 +459,130 @@
 </main>
 
 <script>
+// ── LANGUAGE ──────────────────────────────────────────────────────────────────
+
+let LANG = localStorage.getItem('wc_lang') || 'en';
+
+const T = {
+  en: {
+    tabTournament:   '🌍 Tournament',
+    tabColombia:     '🇨🇴 Colombia',
+    tabScores:       '📅 Scores',
+    live:            'Live',
+    refresh:         '↻ Refresh',
+    updated:         'Updated',
+    tz:              'ET',
+    todayLabel:      (d) => `⚽ Games — ${d}`,
+    tomorrowLabel:   (d) => `⚽ Tomorrow — ${d}`,
+    allStandings:    '📊 All Group Standings',
+    colSchedule:     '📅 Group Stage Schedule',
+    colStandings:    '📊 Group K Standings',
+    howToWatch:      '📺 How to Watch Colombia — Free & Paid',
+    keyPlayers:      '⚽ Key Players',
+    newsResources:   '📰 News & Resources',
+    loadingToday:    "Loading today's schedule…",
+    loadingTomorrow: "Loading tomorrow's schedule…",
+    loadingStandings:'Loading standings…',
+    noGamesToday:    'No games scheduled today',
+    noGamesTomorrow: 'No games scheduled tomorrow',
+    noGamesDate:     'No games scheduled',
+    noStandings:     'Standings not yet available',
+    noStandingsSub:  'Open via a local server to fetch live ESPN data: <code>python3 -m http.server 8765</code>',
+    noTodaySub:      'Check back on the next match day — or open via a local server for live ESPN data.',
+    noTomorrowSub:   'Check back later for the updated schedule.',
+    selectDate:      'Select a date above',
+    loading:         'Loading…',
+    ft:              'FT',
+    possession:      'Possession',
+    shotsOnTarget:   'Shots on Target',
+    yellowCards:     'Yellow Cards',
+    pen:             'pen',
+    og:              'og',
+    liveStats:       'Live match stats',
+    matchPreview:    'Match preview',
+    fullStats:       'Full match stats',
+    espnOn:          'on ESPN →',
+    kickoffIn:       'Kickoff In',
+    days:            'Days',
+    hrs:             'Hrs',
+    min:             'Min',
+    sec:             'Sec',
+    liveNow:         (n) => `🔴 LIVE NOW — Matchday ${n}`,
+    nextMatch:       (n) => `⏭ Next Match — Matchday ${n}`,
+    groupComplete:   'Group Stage Complete',
+    colAdvance:      'Colombia advance to the knockout rounds!',
+    checkFIFA:       'Check FIFA.com for Round of 32 schedule.',
+    matchdayGroup:   (n) => `Matchday ${n} · Group K`,
+    groupStage:      'Group Stage',
+    stTeam:          'Team',  stGP:'GP', stW:'W', stD:'D', stL:'L',
+    stGF:'GF', stGA:'GA', stGD:'GD', stPts:'Pts',
+    stPtsTitle:      'Points', stGDTitle:'Goal Difference', stGPTitle:'Games Played',
+    qualifyNote:     'Top 2 qualify · Best 3rd-place teams also advance',
+    fullSquad:       'Full 26-man squad on',
+    matchStatsLocal: 'Match stats available via local server',
+  },
+  es: {
+    tabTournament:   '🌍 Torneo',
+    tabColombia:     '🇨🇴 Colombia',
+    tabScores:       '📅 Resultados',
+    live:            'En vivo',
+    refresh:         '↻ Actualizar',
+    updated:         'Actualizado',
+    tz:              'COT',
+    todayLabel:      (d) => `⚽ Partidos de hoy — ${d}`,
+    tomorrowLabel:   (d) => `⚽ Mañana — ${d}`,
+    allStandings:    '📊 Tabla de posiciones',
+    colSchedule:     '📅 Calendario — Fase de grupos',
+    colStandings:    '📊 Tabla del Grupo K',
+    howToWatch:      '📺 Cómo ver a Colombia — Gratis y de pago',
+    keyPlayers:      '⚽ Jugadores clave',
+    newsResources:   '📰 Noticias y recursos',
+    loadingToday:    'Cargando partidos de hoy…',
+    loadingTomorrow: 'Cargando partidos de mañana…',
+    loadingStandings:'Cargando tabla…',
+    noGamesToday:    'No hay partidos hoy',
+    noGamesTomorrow: 'No hay partidos mañana',
+    noGamesDate:     'No hay partidos programados',
+    noStandings:     'Tabla de posiciones no disponible',
+    noStandingsSub:  'Abre en un servidor local para obtener datos en vivo: <code>python3 -m http.server 8765</code>',
+    noTodaySub:      'Vuelve en la próxima jornada, o abre desde un servidor local para datos en vivo.',
+    noTomorrowSub:   'Vuelve más tarde para el calendario actualizado.',
+    selectDate:      'Selecciona una fecha arriba',
+    loading:         'Cargando…',
+    ft:              'FT',
+    possession:      'Posesión',
+    shotsOnTarget:   'Tiros al arco',
+    yellowCards:     'Tarjetas amarillas',
+    pen:             'pen',
+    og:              'ag',
+    liveStats:       'Estadísticas en vivo',
+    matchPreview:    'Vista previa',
+    fullStats:       'Estadísticas del partido',
+    espnOn:          'en ESPN →',
+    kickoffIn:       'Inicio en',
+    days:            'Días',
+    hrs:             'Hrs',
+    min:             'Min',
+    sec:             'Seg',
+    liveNow:         (n) => `🔴 EN VIVO — Jornada ${n}`,
+    nextMatch:       (n) => `⏭ Próximo Partido — Jornada ${n}`,
+    groupComplete:   'Fase de grupos completada',
+    colAdvance:      '¡Colombia avanza a la ronda eliminatoria!',
+    checkFIFA:       'Consulta FIFA.com para el calendario de eliminatorias.',
+    matchdayGroup:   (n) => `Jornada ${n} · Grupo K`,
+    groupStage:      'Fase de grupos',
+    stTeam:          'Equipo', stGP:'PJ', stW:'G', stD:'E', stL:'P',
+    stGF:'GF', stGA:'GC', stGD:'DG', stPts:'Pts',
+    stPtsTitle:      'Puntos', stGDTitle:'Diferencia de goles', stGPTitle:'Partidos jugados',
+    qualifyNote:     'Los 2 mejores clasifican · Los mejores 3eros también avanzan',
+    fullSquad:       'Plantilla completa en',
+    matchStatsLocal: 'Estadísticas disponibles en servidor local',
+  },
+};
+
+function uiLocale() { return LANG === 'es' ? 'es-CO' : 'en-US'; }
+function uiTZ()     { return LANG === 'es' ? 'America/Bogota' : 'America/New_York'; }
+
 // ── FLAG MAP ──────────────────────────────────────────────────────────────────
 
 const FLAGS = {
@@ -594,23 +726,23 @@ let MATCH_SUMMARIES = {}; // key: "homeTeamLower|awayTeamLower"
 const pad = n => String(n).padStart(2,'0');
 
 function fmtET(utc) {
-  return new Date(utc).toLocaleString('en-US', {
-    timeZone: 'America/New_York',
+  return new Date(utc).toLocaleString(uiLocale(), {
+    timeZone: uiTZ(),
     weekday:'short', month:'short', day:'numeric',
     hour:'numeric', minute:'2-digit', hour12:true
-  }) + ' ET';
+  }) + ' ' + T[LANG].tz;
 }
 
 function fmtTimeET(utc) {
-  return new Date(utc).toLocaleTimeString('en-US', {
-    timeZone: 'America/New_York',
+  return new Date(utc).toLocaleTimeString(uiLocale(), {
+    timeZone: uiTZ(),
     hour:'numeric', minute:'2-digit', hour12:true
-  }) + ' ET';
+  }) + ' ' + T[LANG].tz;
 }
 
 function fmtDateShort(utc) {
-  return new Date(utc).toLocaleDateString('en-US', {
-    timeZone:'America/New_York', month:'short', day:'numeric'
+  return new Date(utc).toLocaleDateString(uiLocale(), {
+    timeZone: uiTZ(), month:'short', day:'numeric'
   });
 }
 
@@ -755,7 +887,7 @@ function matchRecapHtml(homeTeam, awayTeam, summary) {
   const aGoals = scorers.filter(s => s.side === 'away');
 
   const goalStr = goals => goals.map(g =>
-    `${g.name} ${g.clock}${g.isPK ? ' <span class="goal-type">pen</span>' : g.isOG ? ' <span class="goal-type">og</span>' : ''}`
+    `${g.name} ${g.clock}${g.isPK ? ` <span class="goal-type">${T[LANG].pen}</span>` : g.isOG ? ` <span class="goal-type">${T[LANG].og}</span>` : ''}`
   ).join(' · ');
 
   const homeGoalHtml = hGoals.length ? `<div class="recap-goals">⚽ ${goalStr(hGoals)}</div>` : '';
@@ -769,9 +901,9 @@ function matchRecapHtml(homeTeam, awayTeam, summary) {
     </div>` : '';
 
   const rows = [
-    statRow('Possession', hs.possessionPct, as_.possessionPct),
-    statRow('Shots on Target', hs.shotsOnTarget, as_.shotsOnTarget),
-    statRow('Yellow Cards', hs.yellowCards, as_.yellowCards),
+    statRow(T[LANG].possession,    hs.possessionPct,  as_.possessionPct),
+    statRow(T[LANG].shotsOnTarget, hs.shotsOnTarget,  as_.shotsOnTarget),
+    statRow(T[LANG].yellowCards,   hs.yellowCards,    as_.yellowCards),
   ].filter(Boolean).join('');
 
   if (!homeGoalHtml && !awayGoalHtml && !rows) return '';
@@ -1025,6 +1157,48 @@ function hideAlert() {
   document.getElementById('alert-bar').style.display = 'none';
 }
 
+// ── LANGUAGE SWITCHING ────────────────────────────────────────────────────────
+
+function applyStaticLabels() {
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  set('label-all-standings', T[LANG].allStandings);
+  set('label-col-schedule',  T[LANG].colSchedule);
+  set('label-col-standings', T[LANG].colStandings);
+  set('label-how-to-watch',  T[LANG].howToWatch);
+  set('label-key-players',   T[LANG].keyPlayers);
+  set('label-news',          T[LANG].newsResources);
+  const sf = document.getElementById('squad-footer');
+  if (sf) sf.innerHTML = `${T[LANG].fullSquad} <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams/colombia/team-news" target="_blank" style="color:var(--col-yellow)">FIFA.com →</a>`;
+  const sp = document.getElementById('scores-placeholder');
+  if (sp) sp.textContent = T[LANG].selectDate;
+  document.querySelector('[data-tab="overview"]').textContent = T[LANG].tabTournament;
+  document.querySelector('[data-tab="colombia"]').textContent = T[LANG].tabColombia;
+  document.querySelector('[data-tab="scores"]').textContent   = T[LANG].tabScores;
+  document.getElementById('live-indicator').innerHTML = `<span class="live-dot"></span>${T[LANG].live}`;
+  document.getElementById('btn-refresh').textContent = T[LANG].refresh;
+}
+
+function setLang(lang) {
+  LANG = lang;
+  localStorage.setItem('wc_lang', lang);
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.id === 'lang-' + lang));
+  applyStaticLabels();
+  renderTodayGames();
+  renderTomorrowGames();
+  renderAllGroupStandings();
+  renderHero();
+  renderMatches();
+  renderStandings();
+  renderStreams();
+  renderScoresList();
+  updateTimestamp();
+  // Rebuild date pills with new locale
+  const track = document.getElementById('date-track');
+  if (track) track.innerHTML = '';
+  buildDateTrack();
+  scrollActivePill();
+}
+
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────
 
 function switchTab(tab) {
@@ -1068,8 +1242,8 @@ function fmtDatePill(ds) {
   const y = +ds.slice(0,4), m = +ds.slice(4,6)-1, d = +ds.slice(6,8);
   const dt = new Date(y, m, d);
   return {
-    dow: dt.toLocaleDateString('en-US', { weekday:'short' }),
-    md:  dt.toLocaleDateString('en-US', { month:'short', day:'numeric' }),
+    dow: dt.toLocaleDateString(uiLocale(), { weekday:'short' }),
+    md:  dt.toLocaleDateString(uiLocale(), { month:'short', day:'numeric' }),
   };
 }
 
@@ -1105,7 +1279,7 @@ async function selectScoreDate(ds) {
   const pill = document.getElementById(`dp-${ds}`);
   if (pill) { pill.classList.add('active'); pill.scrollIntoView({ block:'nearest', inline:'center' }); }
   document.getElementById('scores-list').innerHTML =
-    `<div class="today-empty"><div class="empty-title">Loading…</div></div>`;
+    `<div class="today-empty"><div class="empty-title">${T[LANG].loading}</div></div>`;
   await loadScoreDate(ds);
 }
 
@@ -1166,7 +1340,7 @@ function renderScoresList() {
   const el = document.getElementById('scores-list');
   if (!el) return;
   if (SCORES_GAMES.length === 0) {
-    el.innerHTML = `<div class="today-empty"><div class="empty-title">No games scheduled</div></div>`;
+    el.innerHTML = `<div class="today-empty"><div class="empty-title">${T[LANG].noGamesDate}</div></div>`;
     return;
   }
   el.innerHTML = `<div class="scores-list">` + SCORES_GAMES.map(g => {
@@ -1175,8 +1349,8 @@ function renderScoresList() {
     const isPre   = g.state === 'pre';
     const open    = SCORES_EXPANDED.has(g.id);
 
-    const badge = isLive  ? `<span class="status-chip live">🔴 ${g.clock || g.detail || 'Live'}</span>`
-                : isFinal ? `<span class="status-chip final">FT</span>`
+    const badge = isLive  ? `<span class="status-chip live">🔴 ${g.clock || g.detail || T[LANG].live}</span>`
+                : isFinal ? `<span class="status-chip final">${T[LANG].ft}</span>`
                 :           `<span class="status-chip sched">${fmtTimeET(g.kickoffUTC)}</span>`;
 
     const showScore = isLive || isFinal;
@@ -1186,12 +1360,12 @@ function renderScoresList() {
     let detail = '';
     if (open) {
       const espnUrl = espnMatchUrl(g.id, g.homeTeam, g.awayTeam);
-      const label   = isLive ? 'Live match stats' : isPre ? 'Match preview' : 'Full match stats';
+      const label   = isLive ? T[LANG].liveStats : isPre ? T[LANG].matchPreview : T[LANG].fullStats;
       const recap   = isFinal ? matchRecapHtml(g.homeTeam, g.awayTeam, summaryForGame(g.homeTeam, g.awayTeam)) : '';
       detail = `<div class="score-detail">
         ${recap}
         <a href="${espnUrl}" target="_blank" class="espn-link" onclick="event.stopPropagation()">
-          📊 ${label} on ESPN →
+          📊 ${label} ${T[LANG].espnOn}
         </a>
       </div>`;
     }
@@ -1226,20 +1400,19 @@ function renderTodayGames() {
   const el = document.getElementById('today-games');
   if (!el) return;
 
-  // Update the label with today's date
   const todayLabel = document.getElementById('today-label');
   if (todayLabel) {
-    const dateStr = new Date().toLocaleDateString('en-US', {
-      timeZone: 'America/New_York', weekday:'long', month:'long', day:'numeric'
+    const dateStr = new Date().toLocaleDateString(uiLocale(), {
+      timeZone: uiTZ(), weekday:'long', month:'long', day:'numeric'
     });
-    todayLabel.textContent = `⚽ Games — ${dateStr}`;
+    todayLabel.textContent = T[LANG].todayLabel(dateStr);
   }
 
   if (TODAY_GAMES.length === 0) {
     el.innerHTML = `
       <div class="today-empty">
-        <div class="empty-title">No games scheduled today</div>
-        <div style="margin-top:.4rem;font-size:.8rem">Check back on the next match day — or open via a local server for live ESPN data.</div>
+        <div class="empty-title">${T[LANG].noGamesToday}</div>
+        <div style="margin-top:.4rem;font-size:.8rem">${T[LANG].noTodaySub}</div>
       </div>`;
     return;
   }
@@ -1252,17 +1425,17 @@ function renderTodayGames() {
 
     let badge, hs, as_;
     if (isLive) {
-      badge = `<span class="status-chip live">🔴 ${g.clock || g.detail || 'Live'}</span>`;
+      badge = `<span class="status-chip live">🔴 ${g.clock || g.detail || T[LANG].live}</span>`;
       hs = g.homeScore ?? '0'; as_ = g.awayScore ?? '0';
     } else if (isFinal) {
-      badge = `<span class="status-chip final">FT</span>`;
+      badge = `<span class="status-chip final">${T[LANG].ft}</span>`;
       hs = g.homeScore ?? '–'; as_ = g.awayScore ?? '–';
     } else {
       badge = `<span class="status-chip sched">${fmtTimeET(g.kickoffUTC)}</span>`;
       hs = '–'; as_ = '–';
     }
 
-    const noteText = g.note || 'Group Stage';
+    const noteText = g.note || T[LANG].groupStage;
     const tvText   = g.tv   ? `<span class="meta-tag">📺 ${g.tv}</span>` : '';
     const cityText = (g.city || g.venue) ? `<span class="meta-tag">📍 ${g.city || g.venue}</span>` : '';
     const recap    = isFinal ? matchRecapHtml(g.homeTeam, g.awayTeam, summaryForGame(g.homeTeam, g.awayTeam)) : '';
@@ -1316,17 +1489,17 @@ function renderTomorrowGames() {
   if (tomorrowLabel) {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    const dateStr = d.toLocaleDateString('en-US', {
-      timeZone: 'America/New_York', weekday:'long', month:'long', day:'numeric'
+    const dateStr = d.toLocaleDateString(uiLocale(), {
+      timeZone: uiTZ(), weekday:'long', month:'long', day:'numeric'
     });
-    tomorrowLabel.textContent = `⚽ Tomorrow — ${dateStr}`;
+    tomorrowLabel.textContent = T[LANG].tomorrowLabel(dateStr);
   }
 
   if (TOMORROW_GAMES.length === 0) {
     el.innerHTML = `
       <div class="today-empty">
-        <div class="empty-title">No games scheduled tomorrow</div>
-        <div style="margin-top:.4rem;font-size:.8rem">Check back later for the updated schedule.</div>
+        <div class="empty-title">${T[LANG].noGamesTomorrow}</div>
+        <div style="margin-top:.4rem;font-size:.8rem">${T[LANG].noTomorrowSub}</div>
       </div>`;
     return;
   }
@@ -1338,17 +1511,17 @@ function renderTomorrowGames() {
 
     let badge, hs, as_;
     if (isLive) {
-      badge = `<span class="status-chip live">🔴 ${g.clock || g.detail || 'Live'}</span>`;
+      badge = `<span class="status-chip live">🔴 ${g.clock || g.detail || T[LANG].live}</span>`;
       hs = g.homeScore ?? '0'; as_ = g.awayScore ?? '0';
     } else if (isFinal) {
-      badge = `<span class="status-chip final">FT</span>`;
+      badge = `<span class="status-chip final">${T[LANG].ft}</span>`;
       hs = g.homeScore ?? '–'; as_ = g.awayScore ?? '–';
     } else {
       badge = `<span class="status-chip sched">${fmtTimeET(g.kickoffUTC)}</span>`;
       hs = '–'; as_ = '–';
     }
 
-    const noteText = g.note || 'Group Stage';
+    const noteText = g.note || T[LANG].groupStage;
     const tvText   = g.tv   ? `<span class="meta-tag">📺 ${g.tv}</span>` : '';
     const cityText = (g.city || g.venue) ? `<span class="meta-tag">📍 ${g.city || g.venue}</span>` : '';
     const recap    = isFinal ? matchRecapHtml(g.homeTeam, g.awayTeam, summaryForGame(g.homeTeam, g.awayTeam)) : '';
@@ -1401,8 +1574,8 @@ function renderAllGroupStandings() {
   if (ALL_GROUPS_DATA.length === 0) {
     el.innerHTML = `
       <div class="today-empty">
-        <div class="empty-title">Standings not yet available</div>
-        <div style="margin-top:.4rem;font-size:.8rem">Open via a local server to fetch live ESPN data: <code>python3 -m http.server 8765</code></div>
+        <div class="empty-title">${T[LANG].noStandings}</div>
+        <div style="margin-top:.4rem;font-size:.8rem">${T[LANG].noStandingsSub}</div>
       </div>`;
     return;
   }
@@ -1414,10 +1587,10 @@ function renderAllGroupStandings() {
         <thead>
           <tr>
             <th style="width:20px">#</th>
-            <th>Team</th>
-            <th title="Points">Pts</th>
-            <th title="Goal Difference">GD</th>
-            <th title="Games Played">GP</th>
+            <th>${T[LANG].stTeam}</th>
+            <th title="${T[LANG].stPtsTitle}">${T[LANG].stPts}</th>
+            <th title="${T[LANG].stGDTitle}">${T[LANG].stGD}</th>
+            <th title="${T[LANG].stGPTitle}">${T[LANG].stGP}</th>
           </tr>
         </thead>
         <tbody>
@@ -1450,9 +1623,9 @@ function renderHero() {
     document.getElementById('hero').innerHTML = `
       <div class="hero" style="justify-content:center;text-align:center;grid-template-columns:1fr">
         <div>
-          <div class="hero-eyebrow">Group Stage Complete</div>
-          <div class="hero-title">Colombia advance to the knockout rounds!</div>
-          <div class="hero-detail" style="margin-top:.5rem">Check FIFA.com for Round of 32 schedule.</div>
+          <div class="hero-eyebrow">${T[LANG].groupComplete}</div>
+          <div class="hero-title">${T[LANG].colAdvance}</div>
+          <div class="hero-detail" style="margin-top:.5rem">${T[LANG].checkFIFA}</div>
         </div>
       </div>`;
     return;
@@ -1467,7 +1640,7 @@ function renderHero() {
     document.getElementById('hero').innerHTML = `
       <div class="hero live-mode">
         <div>
-          <div class="hero-eyebrow">🔴 LIVE NOW — Matchday ${target.matchday}</div>
+          <div class="hero-eyebrow">${T[LANG].liveNow(target.matchday)}</div>
           <div class="hero-title">${target.home.flag} ${target.home.name} &nbsp;vs&nbsp; ${target.away.flag} ${target.away.name}</div>
           <div class="hero-detail" style="margin-top:.3rem">📍 ${target.venue}, ${target.city}</div>
           <div class="hero-streams">
@@ -1479,14 +1652,14 @@ function renderHero() {
         <div style="text-align:center">
           <div class="score-big">${sc.homeScore} – ${sc.awayScore}</div>
           <div class="score-teams-label">${target.home.name} · ${target.away.name}</div>
-          <div><span class="live-badge">${sc.clock || sc.detail || 'LIVE'}</span></div>
+          <div><span class="live-badge">${sc.clock || sc.detail || T[LANG].live.toUpperCase()}</span></div>
         </div>
       </div>`;
   } else {
     document.getElementById('hero').innerHTML = `
       <div class="hero">
         <div>
-          <div class="hero-eyebrow">⏭ Next Match — Matchday ${target.matchday}</div>
+          <div class="hero-eyebrow">${T[LANG].nextMatch(target.matchday)}</div>
           <div class="hero-title">${target.home.flag} ${target.home.name} <span style="color:var(--muted);font-weight:400">vs</span> ${target.away.flag} ${target.away.name}</div>
           <div class="hero-detail" style="margin-top:.3rem">🕐 ${fmtET(target.kickoffUTC)}</div>
           <div class="hero-detail">📍 ${target.venue}, ${target.city} &nbsp;·&nbsp; 📺 ${target.tv}</div>
@@ -1498,12 +1671,12 @@ function renderHero() {
         </div>
         ${cd ? `
         <div class="countdown">
-          <div class="countdown-label">Kickoff In</div>
+          <div class="countdown-label">${T[LANG].kickoffIn}</div>
           <div class="cd-grid">
-            <div class="cd-unit"><div class="cd-num" id="cd-d">${pad(cd.d)}</div><div class="cd-lbl">Days</div></div>
-            <div class="cd-unit"><div class="cd-num" id="cd-h">${pad(cd.h)}</div><div class="cd-lbl">Hrs</div></div>
-            <div class="cd-unit"><div class="cd-num" id="cd-m">${pad(cd.m)}</div><div class="cd-lbl">Min</div></div>
-            <div class="cd-unit"><div class="cd-num" id="cd-s">${pad(cd.s)}</div><div class="cd-lbl">Sec</div></div>
+            <div class="cd-unit"><div class="cd-num" id="cd-d">${pad(cd.d)}</div><div class="cd-lbl">${T[LANG].days}</div></div>
+            <div class="cd-unit"><div class="cd-num" id="cd-h">${pad(cd.h)}</div><div class="cd-lbl">${T[LANG].hrs}</div></div>
+            <div class="cd-unit"><div class="cd-num" id="cd-m">${pad(cd.m)}</div><div class="cd-lbl">${T[LANG].min}</div></div>
+            <div class="cd-unit"><div class="cd-num" id="cd-s">${pad(cd.s)}</div><div class="cd-lbl">${T[LANG].sec}</div></div>
           </div>
         </div>` : ''}
       </div>`;
@@ -1521,10 +1694,10 @@ function renderMatches() {
     let hs = '–', as_ = '–';
 
     if (state === 'live') {
-      badge = `<span class="status-chip live">🔴 ${sc?.clock || 'Live'}</span>`;
+      badge = `<span class="status-chip live">🔴 ${sc?.clock || T[LANG].live}</span>`;
       hs = sc?.homeScore ?? '0'; as_ = sc?.awayScore ?? '0';
     } else if (state === 'final') {
-      badge = `<span class="status-chip final">FT</span>`;
+      badge = `<span class="status-chip final">${T[LANG].ft}</span>`;
       hs = sc?.homeScore ?? '–'; as_ = sc?.awayScore ?? '–';
     } else {
       badge = `<span class="status-chip sched">${fmtDateShort(m.kickoffUTC)}</span>`;
@@ -1533,7 +1706,7 @@ function renderMatches() {
     return `
       <div class="match-card ${state === 'live' ? 'is-live' : state === 'upcoming' ? 'is-next' : ''}">
         <div class="match-top">
-          <span>Matchday ${m.matchday} · Group K</span>
+          <span>${T[LANG].matchdayGroup(m.matchday)}</span>
           ${badge}
         </div>
         <div class="match-body">
@@ -1571,8 +1744,8 @@ function renderStandings() {
     <thead>
       <tr>
         <th style="width:28px">#</th>
-        <th>Team</th>
-        <th>GP</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
+        <th>${T[LANG].stTeam}</th>
+        <th>${T[LANG].stGP}</th><th>${T[LANG].stW}</th><th>${T[LANG].stD}</th><th>${T[LANG].stL}</th><th>${T[LANG].stGF}</th><th>${T[LANG].stGA}</th><th>${T[LANG].stGD}</th><th>${T[LANG].stPts}</th>
       </tr>
     </thead>
     <tbody>
@@ -1592,7 +1765,7 @@ function renderStandings() {
     </tbody>
     <tfoot>
       <tr><td colspan="10" style="font-size:.62rem;color:var(--muted);padding-top:.4rem">
-        <span style="color:var(--green)">■</span> Top 2 qualify · Best 3rd-place teams also advance
+        <span style="color:var(--green)">■</span> ${T[LANG].qualifyNote}
       </td></tr>
     </tfoot>`;
 }
@@ -1615,7 +1788,7 @@ function renderStreams() {
             ${scoreStr ? `<span class="stream-final-score">${scoreStr}</span>` : ''}
             <span class="status-chip final" style="font-size:.62rem">FT</span>
           </div>
-          ${recap || '<div style="font-size:.75rem;color:var(--muted)">Match stats available via local server</div>'}
+          ${recap || `<div style="font-size:.75rem;color:var(--muted)">${T[LANG].matchStatsLocal}</div>`}
         </div>`;
     }
 
@@ -1658,7 +1831,7 @@ function renderNews() {
 
 function updateTimestamp() {
   document.getElementById('last-updated').textContent =
-    'Updated ' + new Date().toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', second:'2-digit' });
+    T[LANG].updated + ' ' + new Date().toLocaleTimeString(uiLocale(), { hour:'numeric', minute:'2-digit', second:'2-digit' });
 }
 
 // ── COUNTDOWN TICK ───────────────────────────────────────────────────────────
@@ -1692,6 +1865,11 @@ async function refresh() {
   updateTimestamp();
 }
 
+// Apply saved language preference (updates labels + tab names before any render)
+if (LANG !== 'en') {
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.id === 'lang-' + LANG));
+}
+
 // Render static sections once
 renderStreams();
 renderSquad();
@@ -1704,6 +1882,7 @@ renderStandings();
 renderTodayGames();
 renderTomorrowGames();
 updateTimestamp();
+applyStaticLabels();
 refresh();
 
 // Countdown: every second
