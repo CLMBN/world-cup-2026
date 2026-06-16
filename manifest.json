@@ -2,15 +2,15 @@
   "name": "World Cup 2026",
   "short_name": "WC 2026",
   "description": "Live scores, standings, and schedule for FIFA World Cup 2026",
-  "start_url": "./",
+  "start_url": "/world-cup-2026/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#0d1117",
   "icons": [
     {
-      "src": "colombia_wc26_icon.png",
+      "src": "400x400bb-75.webp",
       "sizes": "400x400",
-      "type": "image/png",
+      "type": "image/webp",
       "purpose": "any"
     }
   ]

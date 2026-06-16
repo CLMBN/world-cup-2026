@@ -1,0 +1,17 @@
+{
+  "name": "México — Copa Mundial 2026",
+  "short_name": "México 2026",
+  "description": "Selección México at the 2026 FIFA World Cup — scores, schedule, standings",
+  "start_url": "/world-cup-2026/mex",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#006847",
+  "icons": [
+    {
+      "src": "../mexico_wc26_icon.png",
+      "sizes": "400x400",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
