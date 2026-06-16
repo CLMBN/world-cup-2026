@@ -320,6 +320,21 @@
   .stream-row.is-final { grid-template-columns: 1fr; }
   .stream-recap-header { display: flex; align-items: center; gap: .6rem; margin-bottom: .4rem; }
   .stream-final-score { font-size: .82rem; font-weight: 700; }
+
+  /* ── TEAM SWITCHER ──────────────────────────────── */
+  .team-switcher {
+    display: flex; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 3px; gap: 3px;
+  }
+  .team-btn {
+    flex: 1; background: none; border: none; color: var(--muted);
+    padding: .5rem .75rem; font-size: .88rem; font-weight: 600;
+    cursor: pointer; border-radius: 7px; font-family: inherit;
+    transition: background .15s, color .15s;
+  }
+  .team-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .standings-tbl tr.mex-row td { color: #3dd68c; font-weight: 600; }
+  .t-name.mex { color: #3dd68c; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -350,7 +365,7 @@
 <nav class="tabs-bar">
   <div class="tabs-nav">
     <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">🌍 Tournament</button>
-    <button class="tab-btn" data-tab="colombia" onclick="switchTab('colombia')">🇨🇴 Colombia</button>
+    <button class="tab-btn" id="btn-tab-team" data-tab="team" onclick="switchTab('team')">🇨🇴 Colombia</button>
     <button class="tab-btn" data-tab="scores" onclick="switchTab('scores')">📅 Scores</button>
   </div>
 </nav>
@@ -401,9 +416,15 @@
   </div>
 
   <!-- ══════════════════════════════════════════════ -->
-  <!-- COLOMBIA TAB                                   -->
+  <!-- TEAM TAB (Colombia / Mexico)                   -->
   <!-- ══════════════════════════════════════════════ -->
-  <div id="tab-colombia" class="tab-content">
+  <div id="tab-team" class="tab-content">
+
+    <!-- TEAM SWITCHER -->
+    <div class="team-switcher">
+      <button class="team-btn active" id="team-btn-colombia" data-team="colombia" onclick="switchTeam('colombia')">🇨🇴 Colombia</button>
+      <button class="team-btn" id="team-btn-mexico" data-team="mexico" onclick="switchTeam('mexico')">🇲🇽 México</button>
+    </div>
 
     <!-- HERO -->
     <div id="hero"></div>
@@ -469,12 +490,14 @@
 // ── LANGUAGE ──────────────────────────────────────────────────────────────────
 
 let LANG = localStorage.getItem('wc_lang') || 'en';
+let ACTIVE_TEAM = localStorage.getItem('wc_team') || 'colombia';
 
 const T = {
   en: {
     appTitle:        'World Cup 2026',
     tabTournament:   '🌍 Tournament',
     tabColombia:     '🇨🇴 Colombia',
+    tabMexico:       '🇲🇽 Mexico',
     tabScores:       '📅 Scores',
     live:            'Live',
     refresh:         '↻ Refresh',
@@ -533,6 +556,7 @@ const T = {
     appTitle:        'Copa Mundial 2026',
     tabTournament:   '🌍 Torneo',
     tabColombia:     '🇨🇴 Colombia',
+    tabMexico:       '🇲🇽 México',
     tabScores:       '📅 Resultados',
     live:            'En vivo',
     refresh:         '↻ Actualizar',
@@ -599,7 +623,7 @@ const FLAGS = {
   'bahrain': '🇧🇭', 'belgium': '🇧🇪', 'bolivia': '🇧🇴',
   'brazil': '🇧🇷', 'cameroon': '🇨🇲', 'canada': '🇨🇦',
   'chile': '🇨🇱', 'colombia': '🇨🇴', 'costa rica': '🇨🇷',
-  'croatia': '🇭🇷', 'czech republic': '🇨🇿', 'denmark': '🇩🇰',
+  'croatia': '🇭🇷', 'czech republic': '🇨🇿', 'czechia': '🇨🇿', 'denmark': '🇩🇰',
   'dr congo': '🇨🇩', 'democratic republic of congo': '🇨🇩',
   'ecuador': '🇪🇨', 'egypt': '🇪🇬', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
   'france': '🇫🇷', 'germany': '🇩🇪', 'ghana': '🇬🇭',
@@ -722,6 +746,79 @@ let STANDINGS = [
   { team:'Colombia',   flag:'🇨🇴', gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0 },
   { team:'DR Congo',   flag:'🇨🇩', gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0 },
   { team:'Uzbekistan', flag:'🇺🇿', gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0 },
+];
+
+// ── MEXICO STATIC DATA ───────────────────────────────────────────────────────
+
+const MEXICO_MATCHES = [
+  {
+    id: '760415', matchday: 1,
+    kickoffUTC: '2026-06-11T19:00:00Z',
+    home: { name: 'Mexico',       flag: '🇲🇽', espn: 'mexico' },
+    away: { name: 'South Africa', flag: '🇿🇦', espn: 'south africa' },
+    venue: 'Estadio Banorte', city: 'Mexico City, MX', tv: 'FOX',
+    streams: [
+      { name: 'FOX (Free OTA!)', type: 'free',  url: 'https://www.fox.com/live',               note: 'Free broadcast TV' },
+      { name: 'Telemundo',       type: 'free',  url: 'https://www.telemundo.com/deportes',     note: 'Free OTA antenna, Spanish' },
+      { name: 'Peacock',         type: 'cable', url: 'https://www.peacocktv.com',              note: 'Telemundo stream online' },
+    ]
+  },
+  {
+    id: '760441', matchday: 2,
+    kickoffUTC: '2026-06-19T01:00:00Z',
+    home: { name: 'Mexico',      flag: '🇲🇽', espn: 'mexico' },
+    away: { name: 'South Korea', flag: '🇰🇷', espn: 'south korea' },
+    venue: 'Estadio Akron', city: 'Guadalajara, MX', tv: 'FOX',
+    streams: [
+      { name: 'FOX (Free OTA!)', type: 'free',  url: 'https://www.fox.com/live',               note: 'Free broadcast TV' },
+      { name: 'Telemundo',       type: 'free',  url: 'https://www.telemundo.com/deportes',     note: 'Free OTA antenna, Spanish' },
+      { name: 'Peacock',         type: 'cable', url: 'https://www.peacocktv.com',              note: 'Telemundo stream online' },
+    ]
+  },
+  {
+    id: '760467', matchday: 3,
+    kickoffUTC: '2026-06-25T01:00:00Z',
+    home: { name: 'Czechia', flag: '🇨🇿', espn: 'czechia' },
+    away: { name: 'Mexico',  flag: '🇲🇽', espn: 'mexico' },
+    venue: 'Estadio Banorte', city: 'Mexico City, MX', tv: 'FOX',
+    streams: [
+      { name: 'FOX (Free OTA!)', type: 'free',  url: 'https://www.fox.com/live',               note: 'Free broadcast TV' },
+      { name: 'Telemundo',       type: 'free',  url: 'https://www.telemundo.com/deportes',     note: 'Free OTA antenna, Spanish' },
+      { name: 'Peacock',         type: 'cable', url: 'https://www.peacocktv.com',              note: 'Telemundo stream online' },
+    ]
+  },
+];
+
+const MEXICO_PLAYERS = [
+  { pos:'GK',  name:'Guillermo Ochoa',    club:'Club América' },
+  { pos:'DEF', name:'Jorge Sánchez',      club:'Porto' },
+  { pos:'DEF', name:'Johan Vásquez',      club:'Genoa' },
+  { pos:'DEF', name:'César Montes',       club:'Espanyol' },
+  { pos:'DEF', name:'Kevin Álvarez',      club:'Pachuca' },
+  { pos:'MID', name:'Edson Álvarez',      club:'West Ham' },
+  { pos:'MID', name:'Luis Chávez',        club:'Pachuca' },
+  { pos:'MID', name:'Carlos Rodríguez',   club:'Cruz Azul' },
+  { pos:'FWD', name:'Santiago Giménez',   club:'Feyenoord' },
+  { pos:'FWD', name:'Hirving Lozano',     club:'PSV Eindhoven' },
+  { pos:'FWD', name:'Henry Martín',       club:'Club América' },
+];
+
+const MEXICO_NEWS = [
+  { icon:'⚽', src:'FIFA.com',    title:'Mexico official team news',         url:'https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams/mexico/team-news' },
+  { icon:'📺', src:'ESPN',        title:'Mexico scores & stats',             url:'https://www.espn.com/soccer/team/_/id/164/mexico' },
+  { icon:'🩹', src:'ESPN',        title:'2026 WC injuries tracker',          url:'https://www.espn.com/soccer/story/_/id/48572979/2026-fifa-world-cup-injuries-tracker-which-stars-miss-latest-info' },
+  { icon:'🗓', src:'NBC Sports',  title:'Daily WC schedule & how to watch', url:'https://www.nbcsports.com/soccer/news/2026-world-cup-daily-schedule-how-to-watch-live-what-games-are-on-today' },
+  { icon:'📊', src:'FIFA.com',    title:'Mexico group standings',            url:'https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/scores-fixtures' },
+  { icon:'🎟', src:'Yahoo Sports','title':'Full 2026 WC schedule & groups', url:'https://sports.yahoo.com/soccer/article/2026-world-cup-schedule-qualified-teams-groups-match-dates-fixtures-how-to-watch-050724214.html' },
+  { icon:'🌐', src:'Wikipedia',   title:'Mexico at the 2026 World Cup',     url:'https://en.wikipedia.org/wiki/Mexico_at_the_2026_FIFA_World_Cup' },
+  { icon:'📰', src:'ESPN',        title:'Mexico squad & WC preview',        url:'https://www.espn.com/soccer/team/_/id/164/mexico' },
+];
+
+let MEXICO_STANDINGS = [
+  { team:'Mexico',       flag:'🇲🇽', gp:1,w:1,d:0,l:0,gf:2,ga:0,pts:3 },
+  { team:'South Korea',  flag:'🇰🇷', gp:1,w:1,d:0,l:0,gf:2,ga:1,pts:3 },
+  { team:'Czechia',      flag:'🇨🇿', gp:1,w:0,d:0,l:1,gf:1,ga:2,pts:0 },
+  { team:'South Africa', flag:'🇿🇦', gp:1,w:0,d:0,l:1,gf:0,ga:2,pts:0 },
 ];
 
 let LIVE_SCORES = {};
@@ -962,6 +1059,7 @@ async function fetchESPN() {
     if (stRes.ok) {
       const st = await stRes.json();
       parseStandings(st);
+      parseMexicoStandings(st);
       parseAllGroups(st);
     }
     if (todayRes.ok) {
@@ -979,7 +1077,10 @@ async function fetchESPN() {
       summaryEvents.push(...(sbData.events || []).filter(ev => {
         const comps = ev.competitions?.[0]?.competitors || [];
         return ev.status?.type?.state === 'post' &&
-          comps.some(c => (c.team?.displayName || '').toLowerCase() === 'colombia');
+          comps.some(c => {
+            const n = (c.team?.displayName || '').toLowerCase();
+            return n === 'colombia' || n === 'mexico';
+          });
       }));
     }
     if (tdData) {
@@ -1126,6 +1227,35 @@ function parseStandings(data) {
   } catch(_) {}
 }
 
+function parseMexicoStandings(data) {
+  try {
+    const groups = data.standings?.groups || data.children || [];
+    const mexicoGroup = groups.find(g => {
+      const entries = g.standings?.entries || g.entries || [];
+      return entries.some(e => (e.team?.displayName || '').toLowerCase() === 'mexico');
+    });
+    if (!mexicoGroup) return;
+    const entries = mexicoGroup.standings?.entries || mexicoGroup.entries || [];
+    if (entries.length < 2) return;
+    const parsed = entries.map(e => {
+      const s = {};
+      (e.stats || []).forEach(st => { s[st.name] = st.value; });
+      return {
+        team: e.team?.displayName || e.team?.name || '?',
+        flag: flagFor(e.team?.displayName || ''),
+        gp:  s.gamesPlayed       ?? 0,
+        w:   s.wins              ?? 0,
+        d:   s.ties              ?? 0,
+        l:   s.losses            ?? 0,
+        gf:  s.pointsFor ?? s.goalsFor ?? 0,
+        ga:  s.pointsAgainst ?? s.goalsAgainst ?? 0,
+        pts: s.points            ?? 0,
+      };
+    });
+    if (parsed.length >= 2) MEXICO_STANDINGS = parsed;
+  } catch(_) {}
+}
+
 function parseAllGroups(data) {
   try {
     const groups = data.standings?.groups || data.children || [];
@@ -1173,16 +1303,27 @@ function applyStaticLabels() {
   set('app-title',           T[LANG].appTitle);
   set('label-all-standings', T[LANG].allStandings);
   set('label-col-schedule',  T[LANG].colSchedule);
-  set('label-col-standings', T[LANG].colStandings);
-  set('label-how-to-watch',  T[LANG].howToWatch);
+  set('label-how-to-watch',  ACTIVE_TEAM === 'mexico'
+    ? (LANG === 'es' ? '📺 Cómo ver a México — Gratis y de pago' : '📺 How to Watch Mexico — Free & Paid')
+    : T[LANG].howToWatch);
+  set('label-col-standings', ACTIVE_TEAM === 'mexico'
+    ? (LANG === 'es' ? '📊 Tabla del Grupo A — México' : '📊 Group A Standings')
+    : T[LANG].colStandings);
   set('label-key-players',   T[LANG].keyPlayers);
   set('label-news',          T[LANG].newsResources);
   const sf = document.getElementById('squad-footer');
-  if (sf) sf.innerHTML = `${T[LANG].fullSquad} <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams/colombia/team-news" target="_blank" style="color:var(--col-yellow)">FIFA.com →</a>`;
+  if (sf) {
+    if (ACTIVE_TEAM === 'mexico') {
+      sf.innerHTML = `Full squad on <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams/mexico/team-news" target="_blank" style="color:#3dd68c">FIFA.com →</a>`;
+    } else {
+      sf.innerHTML = `${T[LANG].fullSquad} <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams/colombia/team-news" target="_blank" style="color:var(--col-yellow)">FIFA.com →</a>`;
+    }
+  }
   const sp = document.getElementById('scores-placeholder');
   if (sp) sp.textContent = T[LANG].selectDate;
   document.querySelector('[data-tab="overview"]').textContent = T[LANG].tabTournament;
-  document.querySelector('[data-tab="colombia"]').textContent = T[LANG].tabColombia;
+  const teamTabBtn = document.getElementById('btn-tab-team');
+  if (teamTabBtn) teamTabBtn.textContent = ACTIVE_TEAM === 'colombia' ? T[LANG].tabColombia : T[LANG].tabMexico;
   document.querySelector('[data-tab="scores"]').textContent   = T[LANG].tabScores;
   document.getElementById('live-indicator').innerHTML = `<span class="live-dot"></span>${T[LANG].live}`;
   document.getElementById('btn-refresh').textContent = T[LANG].refresh;
@@ -1200,6 +1341,8 @@ function setLang(lang) {
   renderMatches();
   renderStandings();
   renderStreams();
+  renderSquad();
+  renderNews();
   renderScoresList();
   updateTimestamp();
   // Rebuild date pills with new locale
@@ -1217,6 +1360,24 @@ function switchTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active');
   document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
   if (tab === 'scores') initScoresTab();
+  if (tab === 'team') { renderHero(); renderMatches(); renderStandings(); renderStreams(); renderSquad(); renderNews(); }
+}
+
+// ── TEAM SWITCHING ────────────────────────────────────────────────────────────
+
+function switchTeam(team) {
+  ACTIVE_TEAM = team;
+  localStorage.setItem('wc_team', team);
+  document.querySelectorAll('.team-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.team === team));
+  const tabBtn = document.getElementById('btn-tab-team');
+  if (tabBtn) tabBtn.textContent = team === 'colombia' ? T[LANG].tabColombia : T[LANG].tabMexico;
+  renderHero();
+  renderMatches();
+  renderStandings();
+  renderStreams();
+  renderSquad();
+  renderNews();
 }
 
 // ── SCORES TAB ───────────────────────────────────────────────────────────────
@@ -1622,19 +1783,31 @@ function renderAllGroupStandings() {
   `).join('') + `</div>`;
 }
 
-// ── RENDER: COLOMBIA TAB ─────────────────────────────────────────────────────
+// ── RENDER: TEAM TAB ─────────────────────────────────────────────────────────
 
 function renderHero() {
-  const liveM = MATCHES.find(m => matchState(m.kickoffUTC) === 'live');
-  const nextM  = MATCHES.find(m => matchState(m.kickoffUTC) === 'upcoming');
+  const matches = ACTIVE_TEAM === 'mexico' ? MEXICO_MATCHES : MATCHES;
+  const accentColor = ACTIVE_TEAM === 'mexico' ? '#3dd68c' : 'var(--col-yellow)';
+  const heroBg  = ACTIVE_TEAM === 'mexico'
+    ? 'linear-gradient(135deg, var(--surface) 0%, #0a200a 100%)'
+    : 'linear-gradient(135deg, var(--surface) 0%, #0a1a3a 100%)';
+  const liveBg  = ACTIVE_TEAM === 'mexico'
+    ? 'linear-gradient(135deg, var(--surface) 0%, #0a2a0a 100%)'
+    : 'linear-gradient(135deg, var(--surface) 0%, #2a0808 100%)';
+  const borderColor = ACTIVE_TEAM === 'mexico' ? '#006847' : 'var(--col-blue)';
+
+  const liveM = matches.find(m => matchState(m.kickoffUTC) === 'live');
+  const nextM  = matches.find(m => matchState(m.kickoffUTC) === 'upcoming');
   const target = liveM || nextM;
+
+  const teamName = ACTIVE_TEAM === 'mexico' ? 'Mexico' : 'Colombia';
 
   if (!target) {
     document.getElementById('hero').innerHTML = `
-      <div class="hero" style="justify-content:center;text-align:center;grid-template-columns:1fr">
+      <div class="hero" style="justify-content:center;text-align:center;grid-template-columns:1fr;border-color:${borderColor};background:${heroBg}">
         <div>
-          <div class="hero-eyebrow">${T[LANG].groupComplete}</div>
-          <div class="hero-title">${T[LANG].colAdvance}</div>
+          <div class="hero-eyebrow" style="color:${accentColor}">${T[LANG].groupComplete}</div>
+          <div class="hero-title">${teamName} advance to the knockout rounds!</div>
           <div class="hero-detail" style="margin-top:.5rem">${T[LANG].checkFIFA}</div>
         </div>
       </div>`;
@@ -1648,9 +1821,9 @@ function renderHero() {
 
   if (state === 'live' && sc) {
     document.getElementById('hero').innerHTML = `
-      <div class="hero live-mode">
+      <div class="hero live-mode" style="background:${liveBg}">
         <div>
-          <div class="hero-eyebrow">${T[LANG].liveNow(target.matchday)}</div>
+          <div class="hero-eyebrow" style="color:${accentColor}">${T[LANG].liveNow(target.matchday)}</div>
           <div class="hero-title">${target.home.flag} ${target.home.name} &nbsp;vs&nbsp; ${target.away.flag} ${target.away.name}</div>
           <div class="hero-detail" style="margin-top:.3rem">📍 ${target.venue}, ${target.city}</div>
           <div class="hero-streams">
@@ -1660,16 +1833,16 @@ function renderHero() {
           </div>
         </div>
         <div style="text-align:center">
-          <div class="score-big">${sc.homeScore} – ${sc.awayScore}</div>
+          <div class="score-big" style="color:${accentColor}">${sc.homeScore} – ${sc.awayScore}</div>
           <div class="score-teams-label">${target.home.name} · ${target.away.name}</div>
           <div><span class="live-badge">${sc.clock || sc.detail || T[LANG].live.toUpperCase()}</span></div>
         </div>
       </div>`;
   } else {
     document.getElementById('hero').innerHTML = `
-      <div class="hero">
+      <div class="hero" style="border-color:${borderColor};background:${heroBg}">
         <div>
-          <div class="hero-eyebrow">${T[LANG].nextMatch(target.matchday)}</div>
+          <div class="hero-eyebrow" style="color:${accentColor}">${T[LANG].nextMatch(target.matchday)}</div>
           <div class="hero-title">${target.home.flag} ${target.home.name} <span style="color:var(--muted);font-weight:400">vs</span> ${target.away.flag} ${target.away.name}</div>
           <div class="hero-detail" style="margin-top:.3rem">🕐 ${fmtET(target.kickoffUTC)}</div>
           <div class="hero-detail">📍 ${target.venue}, ${target.city} &nbsp;·&nbsp; 📺 ${target.tv}</div>
@@ -1683,10 +1856,10 @@ function renderHero() {
         <div class="countdown">
           <div class="countdown-label">${T[LANG].kickoffIn}</div>
           <div class="cd-grid">
-            <div class="cd-unit"><div class="cd-num" id="cd-d">${pad(cd.d)}</div><div class="cd-lbl">${T[LANG].days}</div></div>
-            <div class="cd-unit"><div class="cd-num" id="cd-h">${pad(cd.h)}</div><div class="cd-lbl">${T[LANG].hrs}</div></div>
-            <div class="cd-unit"><div class="cd-num" id="cd-m">${pad(cd.m)}</div><div class="cd-lbl">${T[LANG].min}</div></div>
-            <div class="cd-unit"><div class="cd-num" id="cd-s">${pad(cd.s)}</div><div class="cd-lbl">${T[LANG].sec}</div></div>
+            <div class="cd-unit"><div class="cd-num" id="cd-d" style="color:${accentColor}">${pad(cd.d)}</div><div class="cd-lbl">${T[LANG].days}</div></div>
+            <div class="cd-unit"><div class="cd-num" id="cd-h" style="color:${accentColor}">${pad(cd.h)}</div><div class="cd-lbl">${T[LANG].hrs}</div></div>
+            <div class="cd-unit"><div class="cd-num" id="cd-m" style="color:${accentColor}">${pad(cd.m)}</div><div class="cd-lbl">${T[LANG].min}</div></div>
+            <div class="cd-unit"><div class="cd-num" id="cd-s" style="color:${accentColor}">${pad(cd.s)}</div><div class="cd-lbl">${T[LANG].sec}</div></div>
           </div>
         </div>` : ''}
       </div>`;
@@ -1694,11 +1867,17 @@ function renderHero() {
 }
 
 function renderMatches() {
-  document.getElementById('matches').innerHTML = MATCHES.map(m => {
+  const matches = ACTIVE_TEAM === 'mexico' ? MEXICO_MATCHES : MATCHES;
+  const teamName = ACTIVE_TEAM === 'mexico' ? 'Mexico' : 'Colombia';
+  const hlClass  = ACTIVE_TEAM === 'mexico' ? 'mex' : 'col';
+  const matchdayLabel = ACTIVE_TEAM === 'mexico'
+    ? (n => LANG === 'es' ? `Jornada ${n} · Grupo A` : `Matchday ${n} · Group A`)
+    : T[LANG].matchdayGroup;
+  document.getElementById('matches').innerHTML = matches.map(m => {
     const state = matchState(m.kickoffUTC);
     const sc    = liveScoreFor(m);
-    const homeCol = m.home.name === 'Colombia';
-    const awayCol = m.away.name === 'Colombia';
+    const homeCol = m.home.name === teamName;
+    const awayCol = m.away.name === teamName;
 
     let badge = '';
     let hs = '–', as_ = '–';
@@ -1716,14 +1895,14 @@ function renderMatches() {
     return `
       <div class="match-card ${state === 'live' ? 'is-live' : state === 'upcoming' ? 'is-next' : ''}">
         <div class="match-top">
-          <span>${T[LANG].matchdayGroup(m.matchday)}</span>
+          <span>${matchdayLabel(m.matchday)}</span>
           ${badge}
         </div>
         <div class="match-body">
           <div class="match-teams">
             <div class="t-block home">
               <span class="t-flag">${m.home.flag}</span>
-              <span class="t-name ${homeCol ? 'col' : ''}">${m.home.name}</span>
+              <span class="t-name ${homeCol ? hlClass : ''}">${m.home.name}</span>
             </div>
             <div class="score-pair">
               <span class="snum">${hs}</span>
@@ -1732,7 +1911,7 @@ function renderMatches() {
             </div>
             <div class="t-block away">
               <span class="t-flag">${m.away.flag}</span>
-              <span class="t-name ${awayCol ? 'col' : ''}">${m.away.name}</span>
+              <span class="t-name ${awayCol ? hlClass : ''}">${m.away.name}</span>
             </div>
           </div>
           <div class="match-meta">
@@ -1747,7 +1926,10 @@ function renderMatches() {
 }
 
 function renderStandings() {
-  const sorted = [...STANDINGS].sort((a,b) =>
+  const standings = ACTIVE_TEAM === 'mexico' ? MEXICO_STANDINGS : STANDINGS;
+  const teamName  = ACTIVE_TEAM === 'mexico' ? 'Mexico' : 'Colombia';
+  const rowClass  = ACTIVE_TEAM === 'mexico' ? 'mex-row' : 'col-row';
+  const sorted = [...standings].sort((a,b) =>
     b.pts - a.pts || (b.gf-b.ga)-(a.gf-a.ga) || b.gf-a.gf
   );
   document.getElementById('standings').innerHTML = `
@@ -1761,9 +1943,9 @@ function renderStandings() {
     <tbody>
       ${sorted.map((t,i) => {
         const gd = t.gf - t.ga;
-        const isCol = t.team === 'Colombia';
+        const isHL = t.team === teamName;
         const q = i < 2;
-        return `<tr class="${isCol ? 'col-row' : ''}">
+        return `<tr class="${isHL ? rowClass : ''}">
           <td><span class="pos-num ${q ? 'q' : ''}">${i+1}</span></td>
           <td><div class="t-cell">${t.flag} ${t.team}</div></td>
           <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td>
@@ -1781,7 +1963,8 @@ function renderStandings() {
 }
 
 function renderStreams() {
-  document.getElementById('streams').innerHTML = MATCHES.map((m, i) => {
+  const matches = ACTIVE_TEAM === 'mexico' ? MEXICO_MATCHES : MATCHES;
+  document.getElementById('streams').innerHTML = matches.map((m, i) => {
     const state   = matchState(m.kickoffUTC);
     const sc      = liveScoreFor(m);
     const isFinal = state === 'final';
@@ -1820,16 +2003,26 @@ function renderStreams() {
 }
 
 function renderSquad() {
-  document.getElementById('squad').innerHTML = PLAYERS.map(p => `
+  const players = ACTIVE_TEAM === 'mexico' ? MEXICO_PLAYERS : PLAYERS;
+  document.getElementById('squad').innerHTML = players.map(p => `
     <div class="player">
       <div class="p-pos">${p.pos}</div>
       <div class="p-name">${p.name}</div>
       <div class="p-club">${p.club}</div>
     </div>`).join('');
+  const sf = document.getElementById('squad-footer');
+  if (sf) {
+    if (ACTIVE_TEAM === 'mexico') {
+      sf.innerHTML = `Full squad on <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams/mexico/team-news" target="_blank" style="color:#3dd68c">FIFA.com →</a>`;
+    } else {
+      sf.innerHTML = `${T[LANG].fullSquad} <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/teams/colombia/team-news" target="_blank" style="color:var(--col-yellow)">FIFA.com →</a>`;
+    }
+  }
 }
 
 function renderNews() {
-  document.getElementById('news').innerHTML = NEWS.map(n => `
+  const news = ACTIVE_TEAM === 'mexico' ? MEXICO_NEWS : NEWS;
+  document.getElementById('news').innerHTML = news.map(n => `
     <a href="${n.url}" target="_blank" class="news-a">
       <span class="news-icon">${n.icon}</span>
       <div>
@@ -1847,7 +2040,8 @@ function updateTimestamp() {
 // ── COUNTDOWN TICK ───────────────────────────────────────────────────────────
 
 function tickCountdown() {
-  const m = MATCHES.find(m => matchState(m.kickoffUTC) === 'upcoming');
+  const matches = ACTIVE_TEAM === 'mexico' ? MEXICO_MATCHES : MATCHES;
+  const m = matches.find(m => matchState(m.kickoffUTC) === 'upcoming');
   if (!m) return;
   const cd = countdown(m.kickoffUTC);
   if (!cd) return;
@@ -1875,12 +2069,17 @@ async function refresh() {
   updateTimestamp();
 }
 
-// Apply saved language preference (updates labels + tab names before any render)
+// Apply saved language preference
 if (LANG !== 'en') {
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.id === 'lang-' + LANG));
 }
 
-// Render static sections once
+// Apply saved team preference
+if (ACTIVE_TEAM !== 'colombia') {
+  document.querySelectorAll('.team-btn').forEach(b => b.classList.toggle('active', b.dataset.team === ACTIVE_TEAM));
+}
+
+// Render static sections (team-aware)
 renderStreams();
 renderSquad();
 renderNews();
