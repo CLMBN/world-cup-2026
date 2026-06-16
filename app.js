@@ -876,6 +876,16 @@ function switchTab(tab) {
 
 // ── TEAM SWITCHING ────────────────────────────────────────────────────────────
 
+function updateFlagStripe() {
+  const stripe = document.querySelector('.flag-stripe');
+  if (!stripe) return;
+  if (ACTIVE_TEAM === 'mexico') {
+    stripe.style.background = 'linear-gradient(90deg, #006847 33.3%, #fff 33.3% 66.6%, #ce1126 66.6%)';
+  } else {
+    stripe.style.background = 'linear-gradient(90deg, #FCD116 33.3%, #003087 33.3% 66.6%, #CE1126 66.6%)';
+  }
+}
+
 function switchTeam(team) {
   ACTIVE_TEAM = team;
   localStorage.setItem('wc_team', team);
@@ -883,6 +893,7 @@ function switchTeam(team) {
     b.classList.toggle('active', b.dataset.team === team));
   const tabBtn = document.getElementById('btn-tab-team');
   if (tabBtn) tabBtn.textContent = team === 'colombia' ? T[LANG].tabColombia : T[LANG].tabMexico;
+  updateFlagStripe();
   renderHero();
   renderMatches();
   renderStandings();
@@ -1587,6 +1598,7 @@ if (LANG !== 'en') {
 if (ACTIVE_TEAM !== 'colombia') {
   document.querySelectorAll('.team-btn').forEach(b => b.classList.toggle('active', b.dataset.team === ACTIVE_TEAM));
 }
+updateFlagStripe();
 
 // Render static sections (team-aware)
 renderStreams();
