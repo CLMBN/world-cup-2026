@@ -58,32 +58,54 @@
   <!-- ══════════════════════════════════════════════ -->
   <div id="tab-overview" class="tab-content active">
 
-    <!-- Today's Games -->
-    <div>
-      <div class="section-label" id="today-label">⚽ Today's Games</div>
-      <div id="today-games">
-        <div class="today-empty">
-          <div class="empty-title">Loading today's schedule…</div>
-        </div>
-      </div>
+    <!-- Games | Bracket toggle -->
+    <div class="team-switcher">
+      <button class="team-btn active" id="ov-btn-games" onclick="switchOverview('games')">⚽ Games</button>
+      <button class="team-btn" id="ov-btn-bracket" onclick="switchOverview('bracket')">🏆 Bracket</button>
     </div>
 
-    <!-- Tomorrow's Games -->
-    <div>
-      <div class="section-label" id="tomorrow-label">⚽ Tomorrow's Games</div>
-      <div id="tomorrow-games">
-        <div class="today-empty">
-          <div class="empty-title">Loading tomorrow's schedule…</div>
+    <!-- GAMES SUB-VIEW -->
+    <div id="ov-games" class="ov-subview">
+
+      <!-- Today's Games -->
+      <div>
+        <div class="section-label" id="today-label">⚽ Today's Games</div>
+        <div id="today-games">
+          <div class="today-empty">
+            <div class="empty-title">Loading today's schedule…</div>
+          </div>
         </div>
       </div>
+
+      <!-- Tomorrow's Games -->
+      <div>
+        <div class="section-label" id="tomorrow-label">⚽ Tomorrow's Games</div>
+        <div id="tomorrow-games">
+          <div class="today-empty">
+            <div class="empty-title">Loading tomorrow's schedule…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- All Group Standings -->
+      <div>
+        <div class="section-label" id="label-all-standings">📊 All Group Standings</div>
+        <div id="all-groups">
+          <div class="today-empty">
+            <div class="empty-title">Loading standings…</div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- All Group Standings -->
-    <div>
-      <div class="section-label" id="label-all-standings">📊 All Group Standings</div>
-      <div id="all-groups">
-        <div class="today-empty">
-          <div class="empty-title">Loading standings…</div>
+    <!-- BRACKET SUB-VIEW -->
+    <div id="ov-bracket" class="ov-subview hidden">
+      <div class="bracket-scroll-wrap">
+        <div class="bracket-rounds" id="bracket-rounds">
+          <div class="bracket-empty">
+            <div class="empty-title">Loading bracket…</div>
+          </div>
         </div>
       </div>
     </div>

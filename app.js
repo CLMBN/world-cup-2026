@@ -10,6 +10,11 @@ const T = {
     tabColombia:     '🇨🇴 Colombia',
     tabMexico:       '🇲🇽 Mexico',
     tabScores:       '📅 Scores',
+    ovGames:         '⚽ Games',
+    ovBracket:       '🏆 Bracket',
+    bracketGroupStage: 'Group Stage in Progress',
+    bracketSoon:     'Knockout bracket will appear here once the group stage ends.',
+    roundLabels: { r32:'Round of 32', r16:'Round of 16', qf:'Quarterfinals', sf:'Semifinals', '3rd':'3rd Place', final:'Final' },
     live:            'Live',
     refresh:         '↻ Refresh',
     updated:         'Updated',
@@ -69,6 +74,11 @@ const T = {
     tabColombia:     '🇨🇴 Colombia',
     tabMexico:       '🇲🇽 México',
     tabScores:       '📅 Resultados',
+    ovGames:         '⚽ Partidos',
+    ovBracket:       '🏆 Cuadro',
+    bracketGroupStage: 'Fase de grupos en curso',
+    bracketSoon:     'El cuadro eliminatorio aparecerá aquí al terminar la fase de grupos.',
+    roundLabels: { r32:'Ronda de 32', r16:'Ronda de 16', qf:'Cuartos de Final', sf:'Semifinales', '3rd':'3er Puesto', final:'Final' },
     live:            'En vivo',
     refresh:         '↻ Actualizar',
     updated:         'Actualizado',
@@ -337,6 +347,55 @@ let TODAY_GAMES = [];
 let TOMORROW_GAMES = [];
 let ALL_GROUPS_DATA = [];
 let MATCH_SUMMARIES = {}; // key: "homeTeamLower|awayTeamLower"
+let BRACKET_GAMES = {};   // key: round id → array of games
+
+const ROUND_ORDER = ['r32', 'r16', 'qf', 'sf', '3rd', 'final'];
+
+function detectRound(notes) {
+  const text = (notes || []).map(n => (n.headline || n.text || '')).join(' ').toLowerCase();
+  if (!text) return null;
+  if (text.includes('third') || text.includes('3rd place'))          return '3rd';
+  if (text.includes('final') && !text.includes('semi') && !text.includes('quarter')) return 'final';
+  if (text.includes('semi'))                                          return 'sf';
+  if (text.includes('quarter'))                                       return 'qf';
+  if (text.includes('round of 16') || text.includes('16'))           return 'r16';
+  if (text.includes('round of 32') || text.includes('32') || text.includes('eighth')) return 'r32';
+  return null;
+}
+
+function parseBracketGames(events) {
+  const found = {};
+  (events || []).forEach(ev => {
+    const comp = ev.competitions?.[0];
+    if (!comp) return;
+    const notes = comp.notes || ev.notes || [];
+    const round = detectRound(notes);
+    if (!round) return;
+
+    const home = comp.competitors?.find(c => c.homeAway === 'home');
+    const away = comp.competitors?.find(c => c.homeAway === 'away');
+    if (!home || !away) return;
+
+    const hn = home.team?.displayName || home.team?.name || 'TBD';
+    const an = away.team?.displayName || away.team?.name || 'TBD';
+
+    if (!found[round]) found[round] = [];
+    found[round].push({
+      id:         ev.id,
+      homeTeam:   hn,
+      awayTeam:   an,
+      homeScore:  home.score,
+      awayScore:  away.score,
+      state:      ev.status?.type?.state || 'pre',
+      detail:     ev.status?.type?.shortDetail || '',
+      clock:      ev.status?.displayClock || '',
+      kickoffUTC: ev.date,
+      note:       notes[0]?.headline || '',
+    });
+  });
+  Object.values(found).forEach(arr => arr.sort((a, b) => new Date(a.kickoffUTC) - new Date(b.kickoffUTC)));
+  BRACKET_GAMES = found;
+}
 
 // ── UTILITIES ────────────────────────────────────────────────────────────────
 
@@ -566,6 +625,7 @@ async function fetchESPN() {
     if (sbRes.ok) {
       sbData = await sbRes.json();
       parseScoreboard(sbData);
+      parseBracketGames(sbData.events || []);
     }
     if (stRes.ok) {
       const st = await stRes.json();
@@ -836,6 +896,8 @@ function applyStaticLabels() {
   const teamTabBtn = document.getElementById('btn-tab-team');
   if (teamTabBtn) teamTabBtn.textContent = ACTIVE_TEAM === 'colombia' ? T[LANG].tabColombia : T[LANG].tabMexico;
   document.querySelector('[data-tab="scores"]').textContent   = T[LANG].tabScores;
+  set('ov-btn-games',   T[LANG].ovGames);
+  set('ov-btn-bracket', T[LANG].ovBracket);
   document.getElementById('live-indicator').innerHTML = `<span class="live-dot"></span>${T[LANG].live}`;
   document.getElementById('btn-refresh').textContent = T[LANG].refresh;
 }
@@ -848,6 +910,7 @@ function setLang(lang) {
   renderTodayGames();
   renderTomorrowGames();
   renderAllGroupStandings();
+  renderBracket();
   renderHero();
   renderMatches();
   renderStandings();
@@ -900,6 +963,19 @@ function switchTeam(team) {
   renderStreams();
   renderSquad();
   renderNews();
+}
+
+// ── OVERVIEW SUB-VIEW TOGGLE ─────────────────────────────────────────────────
+
+let OVERVIEW_VIEW = 'games';
+
+function switchOverview(view) {
+  OVERVIEW_VIEW = view;
+  document.getElementById('ov-games').classList.toggle('hidden', view !== 'games');
+  document.getElementById('ov-bracket').classList.toggle('hidden', view !== 'bracket');
+  document.getElementById('ov-btn-games').classList.toggle('active', view === 'games');
+  document.getElementById('ov-btn-bracket').classList.toggle('active', view === 'bracket');
+  if (view === 'bracket') renderBracket();
 }
 
 // ── SCORES TAB ───────────────────────────────────────────────────────────────
@@ -1085,6 +1161,74 @@ function renderScoresList() {
       ${detail}
     </div>`;
   }).join('') + `</div>`;
+}
+
+// ── RENDER: BRACKET ──────────────────────────────────────────────────────────
+
+function bracketTeamHtml(name, score, isFinal, homeWon) {
+  const hn = (name || '').toLowerCase();
+  const isCol = hn === 'colombia';
+  const isMex = hn === 'mexico';
+  const hlClass = isCol ? ' hl-col' : isMex ? ' hl-mex' : '';
+  let winClass = '';
+  if (isFinal && score !== undefined && score !== null && score !== '') {
+    winClass = homeWon ? ' winner' : ' loser';
+  }
+  const scoreHtml = (score !== undefined && score !== null && score !== '')
+    ? `<span class="b-score">${score}</span>` : '';
+  return `<div class="b-team${hlClass}${winClass}">
+    <span class="b-flag">${flagFor(name)}</span>
+    <span class="b-name">${name}</span>
+    ${scoreHtml}
+  </div>`;
+}
+
+function renderBracket() {
+  const el = document.getElementById('bracket-rounds');
+  if (!el) return;
+
+  const activeRounds = ROUND_ORDER.filter(r => BRACKET_GAMES[r]?.length);
+  if (activeRounds.length === 0) {
+    el.innerHTML = `<div class="bracket-empty">
+      <div class="empty-title">${T[LANG].bracketGroupStage}</div>
+      <div style="margin-top:.5rem;font-size:.78rem">${T[LANG].bracketSoon}</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = activeRounds.map((round, ri) => {
+    const label = T[LANG].roundLabels[round] || round.toUpperCase();
+    const games  = BRACKET_GAMES[round];
+
+    const matchesHtml = games.map(g => {
+      const isLive  = g.state === 'in';
+      const isDone  = g.state === 'post';
+      const showScore = isLive || isDone;
+
+      const hs  = showScore ? (g.homeScore ?? '') : '';
+      const as_ = showScore ? (g.awayScore ?? '') : '';
+
+      let homeWon = false;
+      if (isDone && hs !== '' && as_ !== '') homeWon = Number(hs) > Number(as_);
+
+      let statusHtml = '';
+      if (isLive)  statusHtml = `<div class="b-status live">🔴 ${g.clock || T[LANG].live}</div>`;
+      else if (isDone) statusHtml = `<div class="b-status final">FT</div>`;
+      else if (g.kickoffUTC) statusHtml = `<div class="b-status">${fmtDateShort(g.kickoffUTC)}</div>`;
+
+      return `<div class="b-match${isLive ? ' is-live' : isDone ? ' is-done' : ''}">
+        ${bracketTeamHtml(g.homeTeam, hs, isDone, homeWon)}
+        ${bracketTeamHtml(g.awayTeam, as_, isDone, !homeWon)}
+        ${statusHtml}
+      </div>`;
+    }).join('');
+
+    const sep = ri > 0 ? '<div class="bracket-round-sep"></div>' : '';
+    return `${sep}<div class="bracket-round">
+      <div class="bracket-round-label">${label}</div>
+      <div class="bracket-matches">${matchesHtml}</div>
+    </div>`;
+  }).join('');
 }
 
 // ── RENDER: TODAY'S GAMES ─────────────────────────────────────────────────────
@@ -1582,6 +1726,7 @@ async function refresh() {
   renderTodayGames();
   renderTomorrowGames();
   renderAllGroupStandings();
+  renderBracket();
   renderHero();
   renderMatches();
   renderStandings();
@@ -1606,6 +1751,7 @@ renderSquad();
 renderNews();
 
 // Initial render with hardcoded data, then fetch live
+renderBracket();
 renderHero();
 renderMatches();
 renderStandings();
