@@ -224,6 +224,7 @@ html, body {
   position: absolute; left: 50%; bottom: 14px;
   transform: translateX(-50%);
   text-align: center;
+  transition: bottom .8s ease;   /* lets sea creatures sink/rise smoothly */
 }
 .dino {
   font-size: 6.2rem; line-height: 1;
@@ -385,6 +386,9 @@ html, body {
    and head show above the sandy seabed (a land pet stays at bottom:14px
    standing on the ground; a swimmer hovers up in the water column). */
 .pet.water { bottom: 44%; }
+/* sleep mode for sea creatures: sink down and burrow into the sandy
+   seabed, so only its back shows (the seabed is drawn on top of it). */
+.pet.water.sleeping { bottom: 14px; }
 
 /* the creature SWIMS instead of bouncing.
    Higher specificity (.pet.water…) overrides the land animations. */
