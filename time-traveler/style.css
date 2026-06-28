@@ -4,7 +4,7 @@
    Plain HTML/CSS/JS, kid-friendly, touch + keyboard.
    ════════════════════════════════════════════════ */
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 html, body {
   margin: 0;
