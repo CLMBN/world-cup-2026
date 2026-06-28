@@ -58,6 +58,15 @@
   <!-- ══════════════════════════════════════════════ -->
   <div id="tab-overview" class="tab-content active">
 
+    <!-- Games | Bracket toggle -->
+    <div class="team-switcher">
+      <button class="team-btn active" id="ov-btn-games" onclick="switchOverview('games')">⚽ Games</button>
+      <button class="team-btn" id="ov-btn-bracket" onclick="switchOverview('bracket')">🏆 Bracket</button>
+    </div>
+
+    <!-- GAMES SUB-VIEW -->
+    <div id="ov-games" class="ov-subview">
+
     <!-- Today's Games -->
     <div>
       <div class="section-label" id="today-label">⚽ Today's Games</div>
@@ -84,6 +93,19 @@
       <div id="all-groups">
         <div class="today-empty">
           <div class="empty-title">Loading standings…</div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- /ov-games -->
+
+    <!-- BRACKET SUB-VIEW -->
+    <div id="ov-bracket" class="ov-subview hidden">
+      <div class="bracket-scroll-wrap">
+        <div class="bracket-rounds" id="bracket-rounds">
+          <div class="bracket-empty">
+            <div class="empty-title">Loading bracket…</div>
+          </div>
         </div>
       </div>
     </div>
