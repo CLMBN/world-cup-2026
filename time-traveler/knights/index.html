@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Sir Felix — Castle Maze 🛡️</title>
+  <meta name="description" content="Guide Sir Felix the knight through the castle maze to the dragon!" />
+  <meta name="theme-color" content="#2a1f3d" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="kgame">
+
+    <header class="khead">
+      <a class="kback" href="../" aria-label="Back to the time machine">⏳</a>
+      <div class="ktitle">
+        <div class="kname">🛡️ Sir Felix</div>
+        <div class="ksub">Felix suited up! 🐥→🛡️ &nbsp;Ride to the dragon 🐉</div>
+      </div>
+      <div class="kspacer"></div>
+    </header>
+
+    <div id="maze-wrap">
+      <div id="maze">
+        <div id="cells"></div>
+        <div id="dragon"><div class="dsprite">🐉</div></div>
+        <div id="player"><div class="psprite">🏇</div></div>
+      </div>
+    </div>
+
+    <div id="khud">
+      <div class="khint" id="khint">Use the arrows to ride through the maze 🧭</div>
+      <div class="dpad" aria-label="Movement controls">
+        <button class="pad up"    data-dir="up"    aria-label="Up">▲</button>
+        <button class="pad left"  data-dir="left"  aria-label="Left">◀</button>
+        <button class="pad right" data-dir="right" aria-label="Right">▶</button>
+        <button class="pad down"  data-dir="down"  aria-label="Down">▼</button>
+      </div>
+    </div>
+
+    <!-- win overlay -->
+    <div id="win">
+      <div class="win-card">
+        <div class="win-emoji">🛡️🐉</div>
+        <h2>You found the dragon!</h2>
+        <p>Sir Felix rode through the whole maze.</p>
+        <p class="cont">⏳ To be continued…</p>
+        <div class="win-btns">
+          <button id="btn-again" class="kbtn">↺ New maze</button>
+          <a href="../" class="kbtn ghost">⏳ Time machine</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
