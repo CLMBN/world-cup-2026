@@ -5,6 +5,16 @@
    to the dragon in the bottom-right.
    ════════════════════════════════════════════════ */
 
+/* Block iOS double-tap-to-zoom (it fires even over disabled buttons & gaps) */
+(function () {
+  let lastTap = 0;
+  document.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTap <= 320) e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+})();
+
 // difficulty (chosen on the Time Traveler start screen) → bigger maze = harder
 const DIFF = (() => { try { return localStorage.getItem("ttDiff") || "easy"; } catch { return "easy"; } })();
 const MSIZE = { easy: 6, medium: 8, hard: 10 };

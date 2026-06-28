@@ -7,6 +7,16 @@
    gets sad and sleepy until you cheer it back up.
    ════════════════════════════════════════════════ */
 
+/* Block iOS double-tap-to-zoom (it fires even over disabled buttons & gaps) */
+(function () {
+  let lastTap = 0;
+  document.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTap <= 320) e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+})();
+
 const SAVE_KEY = "dinoPetSave_v1";
 
 // How fast each stat drops, in points per real-world minute.
