@@ -396,6 +396,25 @@ function teamAtPos(pos) {
   if (!g || !g.teams || g.teams.length < rank) return null;
   return g.teams[rank - 1];
 }
+// A group winner's real Round of 32 opponent, read from the schedule: it's the
+// earliest fixture involving the winner against a team from a *different* group
+// (its three group-stage opponents are all group-mates). This yields the
+// official third-place pairing — and its date/score — without guessing FIFA's
+// combination table. Returns the opponent's display name, or null if unknown.
+function realKnockoutOpponent(winnerName, groupMates) {
+  const w = normTeam(winnerName);
+  let best = null;
+  for (const ev of Object.values(EVENT_BY_PAIR)) {
+    if (!ev.teams) continue;
+    const opp = ev.teams[0] === w ? ev.teams[1] : ev.teams[1] === w ? ev.teams[0] : null;
+    if (!opp || groupMates.has(opp)) continue;
+    if (!best || new Date(ev.kickoffUTC) < new Date(best.kickoffUTC)) {
+      best = { kickoffUTC: ev.kickoffUTC, name: ev.display?.[opp] || opp };
+    }
+  }
+  return best ? best.name : null;
+}
+
 // the eight best third-placed teams, ranked by FIFA tiebreakers
 function bestThirds() {
   const thirds = ALL_GROUPS_DATA
@@ -423,6 +442,20 @@ function buildProjectedR32() {
     pick.used = true;
     return { pos: '3rd', name: pick.team, letter: pick.letter };
   };
+  // resolve a winner's third-place opponent: prefer the real Round of 32
+  // fixture from the schedule (official pairing), fall back to the projection
+  const thirdFor = winner => {
+    if (winner.name) {
+      const g = findGroup(winner.letter);
+      const mates = new Set((g?.teams || [])
+        .map(t => normTeam(t.team)).filter(n => n !== normTeam(winner.name)));
+      if (mates.size) {
+        const real = realKnockoutOpponent(winner.name, mates);
+        if (real) return { pos: '3rd', name: real, letter: null };
+      }
+    }
+    return thirdSlot(winner.letter);
+  };
   // attach the real ESPN fixture (kickoff time, state, score) once both
   // teams are known, so each match shows its date/time and live result
   const withEvent = m => {
@@ -440,9 +473,9 @@ function buildProjectedR32() {
   };
   return R32_SLOTS.map(([hp, ap]) => {
     // resolve the known (group winner/runner-up) side first so the third
-    // place team can avoid being drawn against its own group
-    if (ap === '3rd') { const home = slot(hp); return withEvent({ home, away: thirdSlot(home.letter) }); }
-    if (hp === '3rd') { const away = slot(ap); return withEvent({ home: thirdSlot(away.letter), away }); }
+    // place opponent can be read from that winner's real knockout fixture
+    if (ap === '3rd') { const home = slot(hp); return withEvent({ home, away: thirdFor(home) }); }
+    if (hp === '3rd') { const away = slot(ap); return withEvent({ home: thirdFor(away), away }); }
     return withEvent({ home: slot(hp), away: slot(ap) });
   });
 }
@@ -794,6 +827,8 @@ function parseScoreboard(data) {
       state:      ev.status?.type?.state || 'pre',
       clock:      ev.status?.displayClock || '',
       scores:     { [hn]: home.score, [an]: away.score },
+      teams:      [hn, an],
+      display:    { [hn]: home.team?.displayName || hn, [an]: away.team?.displayName || an },
     };
 
     // For completed games, extract goal scorers from competition details
