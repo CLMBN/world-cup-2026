@@ -47,14 +47,25 @@
 
       <div class="ground"></div>
 
-      <!-- win overlay -->
-      <div id="win">
-        <div class="win-card">
-          <div class="win-emoji">🚐✨</div>
-          <h2>You found the Time Machine!</h2>
-          <p>Felix made it across. Hop in, Felix…</p>
-          <p class="cont">⏳ To be continued…</p>
-          <button id="btn-again" class="ttbtn">↺ Play again</button>
+      <!-- time-travel destination chooser (black starry screen) -->
+      <div id="travel">
+        <div class="stars" id="stars"></div>
+        <div class="travel-inner">
+          <div class="travel-van">🚐💨</div>
+          <h2>Where to, Felix?</h2>
+          <p class="travel-sub">Pick a time to travel to!</p>
+          <div class="dest-grid">
+            <a class="dest dest-on" href="knights/">
+              <span class="dest-ico">🛡️</span>
+              <span class="dest-name">Knights</span>
+            </a>
+            <button class="dest dest-off" disabled aria-disabled="true">
+              <span class="dest-ico">🔺</span>
+              <span class="dest-name">Pyramids</span>
+              <span class="dest-soon">soon…</span>
+            </button>
+          </div>
+          <button id="btn-again" class="travel-again">↺ start over</button>
         </div>
       </div>
     </div>

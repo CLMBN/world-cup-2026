@@ -11,7 +11,8 @@ const think = document.getElementById("think");
 const thinkText = document.getElementById("think-text");
 const van   = document.getElementById("van");
 const hint  = document.getElementById("hint");
-const winEl = document.getElementById("win");
+const travel = document.getElementById("travel");
+const stars = document.getElementById("stars");
 
 const HERO = 96;           // hero box size (px)
 const SPEED = 300;         // movement speed (px/sec)
@@ -53,7 +54,7 @@ function startIntro() {
   van.classList.remove("active");
   hero.classList.remove("cheer");
   think.classList.remove("show");
-  winEl.classList.remove("show");
+  travel.classList.remove("show");
   hint.style.opacity = "0";
 
   const { w, h } = sceneSize();
@@ -124,10 +125,11 @@ function checkWin() {
   const heroCx = x + HERO / 2;
   const heroCy = y + HERO / 2;
   const d = Math.hypot(vanCx - heroCx, vanCy - heroCy);
-  if (d < vr.width * 0.52) winGame();
+  if (d < vr.width * 0.52) arrive();
 }
 
-function winGame() {
+// ---------- reaching the van: fade to a starry sky + destination chooser ----------
+function arrive() {
   if (won) return;
   won = true;
   controlsOn = false;
@@ -138,28 +140,23 @@ function winGame() {
   showThought("Whoa! A Time Machine! 🤩");
   van.classList.add("active");
   hint.style.opacity = "0";
-  confetti();
-  setTimeout(() => winEl.classList.add("show"), 700);
+  makeStars();
+  setTimeout(() => travel.classList.add("show"), 700);
 }
 
-// ---------- celebration ----------
-function confetti() {
-  const layer = document.getElementById("fx-layer");
-  const bits = ["🎉", "✨", "⭐", "🐥", "⚡"];
-  for (let i = 0; i < 26; i++) {
-    const el = document.createElement("div");
-    el.textContent = bits[i % bits.length];
-    el.style.cssText =
-      `position:fixed;left:${Math.random() * 100}vw;top:-40px;font-size:${1 + Math.random() * 1.4}rem;` +
-      `pointer-events:none;z-index:30;`;
-    el.animate(
-      [
-        { transform: `translateY(0) rotate(0)`, opacity: 1 },
-        { transform: `translateY(105vh) rotate(${360 + Math.random() * 360}deg)`, opacity: 1 },
-      ],
-      { duration: 1800 + Math.random() * 1400, easing: "ease-in" }
-    ).onfinish = () => el.remove();
-    layer.appendChild(el);
+// ---------- starfield for the time-travel screen ----------
+function makeStars() {
+  if (stars.childElementCount) return;        // build once
+  for (let i = 0; i < 70; i++) {
+    const s = document.createElement("span");
+    s.className = "star";
+    const size = 1 + Math.random() * 3;
+    s.style.cssText =
+      `left:${Math.random() * 100}%;top:${Math.random() * 100}%;` +
+      `width:${size}px;height:${size}px;` +
+      `animation-delay:${(Math.random() * 3).toFixed(2)}s;` +
+      `animation-duration:${(1.4 + Math.random() * 2).toFixed(2)}s;`;
+    stars.appendChild(s);
   }
 }
 
