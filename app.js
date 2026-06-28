@@ -353,6 +353,7 @@ let MEXICO_STANDINGS = [
 ];
 
 let LIVE_SCORES = {};
+let EVENT_BY_PAIR = {};   // order-independent team-pair → schedule/score/state
 let TODAY_GAMES = [];
 let TOMORROW_GAMES = [];
 let ALL_GROUPS_DATA = [];
@@ -378,6 +379,9 @@ const R32_SLOTS = [
   ['1D', '3rd'], ['2D', '2G'],
   ['1J', '2H'], ['1B', '3rd'],
 ];
+
+function normTeam(n) { return (n || '').toLowerCase().trim(); }
+function pairKey(a, b) { return [normTeam(a), normTeam(b)].sort().join('~'); }
 
 function groupLetter(g) {
   return (g.abbr || (g.name || '').replace(/group\s*/i, '')).trim().toUpperCase();
@@ -419,12 +423,27 @@ function buildProjectedR32() {
     pick.used = true;
     return { pos: '3rd', name: pick.team, letter: pick.letter };
   };
+  // attach the real ESPN fixture (kickoff time, state, score) once both
+  // teams are known, so each match shows its date/time and live result
+  const withEvent = m => {
+    if (m.home.name && m.away.name) {
+      const ev = EVENT_BY_PAIR[pairKey(m.home.name, m.away.name)];
+      if (ev) {
+        m.kickoffUTC = ev.kickoffUTC;
+        m.state      = ev.state;
+        m.clock      = ev.clock;
+        m.home.score = ev.scores[normTeam(m.home.name)];
+        m.away.score = ev.scores[normTeam(m.away.name)];
+      }
+    }
+    return m;
+  };
   return R32_SLOTS.map(([hp, ap]) => {
     // resolve the known (group winner/runner-up) side first so the third
     // place team can avoid being drawn against its own group
-    if (ap === '3rd') { const home = slot(hp); return { home, away: thirdSlot(home.letter) }; }
-    if (hp === '3rd') { const away = slot(ap); return { home: thirdSlot(away.letter), away }; }
-    return { home: slot(hp), away: slot(ap) };
+    if (ap === '3rd') { const home = slot(hp); return withEvent({ home, away: thirdSlot(home.letter) }); }
+    if (hp === '3rd') { const away = slot(ap); return withEvent({ home: thirdSlot(away.letter), away }); }
+    return withEvent({ home: slot(hp), away: slot(ap) });
   });
 }
 
@@ -497,6 +516,13 @@ function fmtDateShort(utc) {
   return new Date(utc).toLocaleDateString(uiLocale(), {
     timeZone: uiTZ(), month:'short', day:'numeric'
   });
+}
+
+function fmtDateTimeShort(utc) {
+  const d = new Date(utc);
+  return d.toLocaleDateString(uiLocale(), { timeZone: uiTZ(), month:'short', day:'numeric' }) +
+    ' · ' + d.toLocaleTimeString(uiLocale(), { timeZone: uiTZ(), hour:'numeric', minute:'2-digit', hour12:true }) +
+    ' ' + T[LANG].tz;
 }
 
 function todayESPNDate() {
@@ -759,6 +785,15 @@ function parseScoreboard(data) {
       status:    ev.status?.type?.name || '',
       detail:    ev.status?.type?.shortDetail || '',
       clock:     ev.status?.displayClock || '',
+    };
+
+    // order-independent index so the projected bracket can pull the real
+    // kickoff time, live status and score for any matchup once teams are set
+    EVENT_BY_PAIR[pairKey(hn, an)] = {
+      kickoffUTC: ev.date,
+      state:      ev.status?.type?.state || 'pre',
+      clock:      ev.status?.displayClock || '',
+      scores:     { [hn]: home.score, [an]: away.score },
     };
 
     // For completed games, extract goal scorers from competition details
@@ -1260,27 +1295,50 @@ function bracketTeamHtml(name, score, isFinal, homeWon) {
   </div>`;
 }
 
-function projSlotHtml(s) {
+function projSlotHtml(s, showScore, isFinal, won) {
   const known = !!s.name;
   const nm    = (s.name || '').toLowerCase();
   const hl    = nm === 'colombia' ? ' hl-col' : nm === 'mexico' ? ' hl-mex' : '';
   const code  = s.pos === '3rd' ? T[LANG].posThird : s.pos;
   const flag  = known ? flagFor(s.name) : '◦';
   const label = known ? s.name : T[LANG].tbd;
-  return `<div class="b-team${hl}${known ? '' : ' tbd'}">
+  // winner/loser highlight only once the match is final, not while live
+  const winClass = (isFinal && s.score !== undefined && s.score !== null && s.score !== '')
+    ? (won ? ' winner' : ' loser') : '';
+  const scoreHtml = (showScore && s.score !== undefined && s.score !== null && s.score !== '')
+    ? `<span class="b-score">${s.score}</span>` : '';
+  return `<div class="b-team${hl}${known ? '' : ' tbd'}${winClass}">
     <span class="b-pos">${code}</span>
     <span class="b-flag">${flag}</span>
     <span class="b-name">${label}</span>
+    ${scoreHtml}
   </div>`;
 }
 
 function renderProjectedBracket(el) {
   const matches = buildProjectedR32();
-  const matchesHtml = matches.map(m => `
-    <div class="b-match b-proj">
-      ${projSlotHtml(m.home)}
-      ${projSlotHtml(m.away)}
-    </div>`).join('');
+  const matchesHtml = matches.map(m => {
+    const isLive = m.state === 'in';
+    const isDone = m.state === 'post';
+    const showScore = isLive || isDone;
+
+    let homeWon = false, awayWon = false;
+    if (isDone && m.home.score != null && m.away.score != null && m.home.score !== '' && m.away.score !== '') {
+      homeWon = Number(m.home.score) > Number(m.away.score);
+      awayWon = Number(m.away.score) > Number(m.home.score);
+    }
+
+    let statusHtml = '';
+    if (isLive)      statusHtml = `<div class="b-status live">🔴 ${m.clock || T[LANG].live}</div>`;
+    else if (isDone) statusHtml = `<div class="b-status final">${T[LANG].ft}</div>`;
+    else if (m.kickoffUTC) statusHtml = `<div class="b-status">${fmtDateTimeShort(m.kickoffUTC)}</div>`;
+
+    return `<div class="b-match b-proj${isLive ? ' is-live' : isDone ? ' is-done' : ''}">
+      ${projSlotHtml(m.home, showScore, isDone, homeWon)}
+      ${projSlotHtml(m.away, showScore, isDone, awayWon)}
+      ${statusHtml}
+    </div>`;
+  }).join('');
 
   el.innerHTML = `<div class="bracket-proj">
     <div class="bracket-proj-banner">
@@ -1325,7 +1383,7 @@ function renderBracket() {
       let statusHtml = '';
       if (isLive)  statusHtml = `<div class="b-status live">🔴 ${g.clock || T[LANG].live}</div>`;
       else if (isDone) statusHtml = `<div class="b-status final">FT</div>`;
-      else if (g.kickoffUTC) statusHtml = `<div class="b-status">${fmtDateShort(g.kickoffUTC)}</div>`;
+      else if (g.kickoffUTC) statusHtml = `<div class="b-status">${fmtDateTimeShort(g.kickoffUTC)}</div>`;
 
       return `<div class="b-match${isLive ? ' is-live' : isDone ? ' is-done' : ''}">
         ${bracketTeamHtml(g.homeTeam, hs, isDone, homeWon)}
