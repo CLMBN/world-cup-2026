@@ -4,6 +4,16 @@
    and the player guides him to the time-machine minivan.
    ════════════════════════════════════════════════ */
 
+/* Block iOS double-tap-to-zoom (it fires even over disabled buttons & gaps) */
+(function () {
+  let lastTap = 0;
+  document.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTap <= 320) e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+})();
+
 const scene = document.getElementById("scene");
 const hero  = document.getElementById("hero");
 const flip  = document.getElementById("flip");

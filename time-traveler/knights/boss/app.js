@@ -8,6 +8,16 @@
    Touched by a fireball → the level restarts.
    ════════════════════════════════════════════════ */
 
+/* Block iOS double-tap-to-zoom (it fires even over disabled buttons & gaps) */
+(function () {
+  let lastTap = 0;
+  document.addEventListener("touchend", (e) => {
+    const now = Date.now();
+    if (now - lastTap <= 320) e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+})();
+
 const scene    = document.getElementById("scene");
 const felixEl  = document.getElementById("felix");
 const dragonEl = document.getElementById("dragon");
@@ -69,7 +79,7 @@ function resetLevel(firstTime) {
   balls.forEach(b => b.el.remove());
   balls = [];
   inRange = false;
-  flameBtn.disabled = true;
+  flameBtn.classList.add("off");
   invuln = firstTime ? 1.0 : 1.4;
   spawnT = 0.8;
   if (!firstTime) {
@@ -135,7 +145,7 @@ function checkRange() {
   const near = Math.abs(d.cx - fcx) < C.rangeX && Math.abs(d.cy - fcy) < C.rangeY;
   if (near !== inRange) {
     inRange = near;
-    flameBtn.disabled = !near;
+    flameBtn.classList.toggle("off", !near);
     if (near) hint.textContent = "You're next to the dragon — press 🔥 FLAME!";
     else if (playing && invuln <= 0) hint.textContent = "Move with the arrows. Avoid the 🔥!";
   }
@@ -146,7 +156,7 @@ function flameDragon() {
   if (!inRange || defeated || !playing) return;
   defeated = true;
   playing = false;
-  flameBtn.disabled = true;
+  flameBtn.classList.add("off");
   for (const k in dirs) dirs[k] = false;
   balls.forEach(b => b.el.remove()); balls = [];
 
@@ -233,7 +243,7 @@ const KEYMAP = {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === " " || e.key === "f" || e.key === "F") {
-    e.preventDefault(); if (!flameBtn.disabled) flameDragon(); return;
+    e.preventDefault(); if (!flameBtn.classList.contains("off")) flameDragon(); return;
   }
   const dir = KEYMAP[e.key] || KEYMAP[(e.key || "").toLowerCase()];
   if (!dir) return;
