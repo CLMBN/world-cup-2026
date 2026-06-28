@@ -1,0 +1,10 @@
+{
+  "name": "Time Traveler",
+  "short_name": "Time Traveler",
+  "description": "Help Felix the fluffy chicken reach the time-machine minivan!",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0c1730",
+  "theme_color": "#7ec8ff"
+}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Time Traveler 🐥</title>
+  <meta name="description" content="Help Felix the fluffy chicken reach the time-machine minivan!" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#7ec8ff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Time Traveler" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="game">
+
+    <!-- ════════════════ THE SCENE ════════════════ -->
+    <div id="scene">
+      <!-- sky decor -->
+      <div class="sun">☀️</div>
+      <span class="cloud k1">☁️</span>
+      <span class="cloud k2">☁️</span>
+      <span class="cloud k3">☁️</span>
+
+      <!-- the time-machine minivan (goal) -->
+      <div id="van" aria-label="Time machine minivan">
+        <div class="van-glow"></div>
+        <div class="van-ring"></div>
+        <div class="van-sprite">🚐</div>
+        <span class="spark s1">✨</span>
+        <span class="spark s2">⚡</span>
+        <span class="spark s3">✨</span>
+        <div class="van-label">TIME&nbsp;MACHINE</div>
+      </div>
+
+      <!-- Felix the fluffy chicken (player) -->
+      <div id="hero">
+        <div class="think" id="think">
+          <span id="think-text">What is that?</span>
+        </div>
+        <div class="flip" id="flip">
+          <div class="emoji">🐥</div>
+        </div>
+        <div class="hero-shadow"></div>
+      </div>
+
+      <div class="ground"></div>
+
+      <!-- win overlay -->
+      <div id="win">
+        <div class="win-card">
+          <div class="win-emoji">🚐✨</div>
+          <h2>You found the Time Machine!</h2>
+          <p>Felix made it across. Hop in, Felix…</p>
+          <p class="cont">⏳ To be continued…</p>
+          <button id="btn-again" class="ttbtn">↺ Play again</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════ CONTROLS ════════════════ -->
+    <div id="hud">
+      <div class="hint" id="hint">Use the arrows to walk Felix to the Time Machine! ➡️🚐</div>
+
+      <div class="dpad" aria-label="Movement controls">
+        <button class="pad up"    data-dir="up"    aria-label="Up">▲</button>
+        <button class="pad left"  data-dir="left"  aria-label="Left">◀</button>
+        <button class="pad right" data-dir="right" aria-label="Right">▶</button>
+        <button class="pad down"  data-dir="down"  aria-label="Down">▼</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="fx-layer"></div>
+  <script src="app.js"></script>
+</body>
+</html>
