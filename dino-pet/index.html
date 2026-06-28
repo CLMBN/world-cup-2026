@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Dino Pet 🦖</title>
+  <meta name="description" content="Take care of your very own baby dinosaur! Feed it, play with it, and let it sleep." />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#3ec46d" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Dino Pet" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- ════════════════ HATCH / START SCREEN ════════════════ -->
+    <section id="screen-start" class="screen active">
+      <h1 class="title">Dino Pet</h1>
+      <p class="subtitle">Tap the egg to hatch your dinosaur!</p>
+
+      <div id="egg" class="egg" role="button" tabindex="0" aria-label="Hatch the egg">
+        <div class="egg-shell">🥚</div>
+        <div class="egg-shine"></div>
+      </div>
+      <div class="tap-hint" id="tap-hint">👆 tap tap tap!</div>
+
+      <!-- naming panel appears after hatch -->
+      <div id="name-panel" class="panel hidden">
+        <p class="hatched-line">It's a baby dino! 🎉</p>
+
+        <p class="field-label">Pick your dino:</p>
+        <div class="dino-pick" id="dino-pick">
+          <button class="pick-btn selected" data-dino="🦖" aria-label="T-Rex">🦖</button>
+          <button class="pick-btn" data-dino="🦕" aria-label="Brontosaurus">🦕</button>
+          <button class="pick-btn" data-dino="🐲" aria-label="Dragon dino">🐲</button>
+        </div>
+
+        <p class="field-label">Give it a name:</p>
+        <input id="name-input" class="name-input" type="text" maxlength="12"
+               placeholder="Rex" autocomplete="off" />
+
+        <button id="btn-start" class="big-btn">Let's go! ▶</button>
+      </div>
+    </section>
+
+    <!-- ════════════════ MAIN GAME SCREEN ════════════════ -->
+    <section id="screen-game" class="screen">
+
+      <header class="game-header">
+        <div class="pet-name" id="pet-name">Rex</div>
+        <div class="pet-age" id="pet-age">Age: 0 days</div>
+      </header>
+
+      <!-- stat bars -->
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-top"><span>🍖 Hunger</span><span id="hunger-pct">100%</span></div>
+          <div class="bar"><div class="bar-fill hunger" id="hunger-bar"></div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><span>😄 Fun</span><span id="happy-pct">100%</span></div>
+          <div class="bar"><div class="bar-fill happy" id="happy-bar"></div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><span>⚡ Energy</span><span id="energy-pct">100%</span></div>
+          <div class="bar"><div class="bar-fill energy" id="energy-bar"></div></div>
+        </div>
+      </div>
+
+      <!-- the pet scene -->
+      <div class="scene" id="scene">
+        <div class="sun" id="sun">☀️</div>
+        <div class="moon" id="moon">🌙</div>
+        <div class="clouds">
+          <span class="cloud c1">☁️</span>
+          <span class="cloud c2">☁️</span>
+        </div>
+
+        <div class="pet" id="pet">
+          <div class="zzz" id="zzz">💤</div>
+          <div class="dino" id="dino">🦖</div>
+          <div class="status-bubble" id="status-bubble"></div>
+        </div>
+
+        <div class="ground"></div>
+        <div class="food" id="food">🍖</div>
+        <div class="ball" id="ball">🎾</div>
+      </div>
+
+      <div class="mood-line" id="mood-line">Happy!</div>
+
+      <!-- action buttons -->
+      <div class="actions">
+        <button class="action-btn feed" id="btn-feed">
+          <span class="emoji">🍖</span><span class="label">Feed</span>
+        </button>
+        <button class="action-btn play" id="btn-play">
+          <span class="emoji">🎾</span><span class="label">Play</span>
+        </button>
+        <button class="action-btn sleep" id="btn-sleep">
+          <span class="emoji">😴</span><span class="label">Sleep</span>
+        </button>
+      </div>
+
+      <button class="reset-link" id="btn-reset">Start over with a new egg</button>
+    </section>
+
+  </div>
+
+  <!-- floating hearts / particles land here -->
+  <div id="fx-layer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
