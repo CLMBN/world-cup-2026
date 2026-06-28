@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Dragon Boss 🐉🔥</title>
+  <meta name="description" content="Dodge the dragon's fireballs and flame it into a spicy chicken leg!" />
+  <meta name="theme-color" content="#2a1020" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="bgame">
+
+    <header class="bhead">
+      <a class="bback" href="../" aria-label="Back to the maze">⬅️</a>
+      <div class="btitle">
+        <div class="bname">🐉 Dragon Boss</div>
+        <div class="bsub" id="bsub">Dodge the fireballs &amp; reach the dragon!</div>
+      </div>
+      <div class="bspacer"></div>
+    </header>
+
+    <div id="scene">
+      <div class="ground"></div>
+
+      <div id="dragon"><div class="dsprite">🐉</div></div>
+
+      <div id="flame" class="flame"></div>
+
+      <div id="felix">
+        <div class="think" id="think"><span id="think-text"></span></div>
+        <div class="fsprite">🐥<span class="shield">🛡️</span></div>
+      </div>
+
+      <div id="fireballs"></div>
+      <div class="hitflash" id="hitflash"></div>
+    </div>
+
+    <div id="bhud">
+      <div class="bhint" id="bhint">Move with the arrows. Avoid the 🔥!</div>
+      <div class="controls">
+        <div class="dpad" aria-label="Movement controls">
+          <button class="pad up"    data-dir="up"    aria-label="Up">▲</button>
+          <button class="pad left"  data-dir="left"  aria-label="Left">◀</button>
+          <button class="pad right" data-dir="right" aria-label="Right">▶</button>
+          <button class="pad down"  data-dir="down"  aria-label="Down">▼</button>
+        </div>
+        <button id="btn-flame" class="flame-btn" disabled aria-label="Flame">
+          <span class="fb-ico">🔥</span><span class="fb-label">FLAME</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- win overlay -->
+    <div id="win">
+      <div class="win-card">
+        <div class="win-emoji">🍗🌶️</div>
+        <h2>That's spicy! 🔥</h2>
+        <p>Felix flamed the dragon into a spicy chicken leg… and gobbled it up!</p>
+        <p class="cont">🏆 The End</p>
+        <div class="win-btns">
+          <button id="btn-again" class="bbtn">↺ Play again</button>
+          <a href="../../" class="bbtn ghost">⏳ Time machine</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

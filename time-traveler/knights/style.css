@@ -144,3 +144,7 @@ html, body {
 .kbtn:active { transform: translateY(4px); box-shadow: 0 1px 0 #5a3596; }
 .kbtn.ghost { background: #eee7fb; color: #5a3596; box-shadow: 0 5px 0 #c9b8ec; }
 .kbtn.ghost:active { box-shadow: 0 1px 0 #c9b8ec; }
+
+/* big primary button (e.g. "Fight the dragon!") */
+.kbtn.big { font-size: 1.15rem; padding: 13px 22px; background: #d63a3a; box-shadow: 0 5px 0 #a32626; }
+.kbtn.big:active { box-shadow: 0 1px 0 #a32626; }

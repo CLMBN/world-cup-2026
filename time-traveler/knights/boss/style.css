@@ -1,0 +1,209 @@
+/* ════════════════════════════════════════════════
+   Dragon Boss — dodge fireballs, flame the dragon,
+   it becomes a spicy chicken leg, Felix eats it.
+   ════════════════════════════════════════════════ */
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; height: 100%;
+  font-family: "Baloo 2", "Comic Sans MS", "Segoe UI", system-ui, sans-serif;
+  background: #190810;
+  color: #ffe9e0;
+  overflow: hidden;
+  user-select: none; -webkit-user-select: none;
+  touch-action: none;
+}
+
+#bgame {
+  position: relative;
+  max-width: 760px; margin: 0 auto;
+  height: 100dvh;
+  display: flex; flex-direction: column;
+}
+
+/* ════════ header ════════ */
+.bhead { display: flex; align-items: center; gap: 10px; padding: 8px 14px; flex-shrink: 0; }
+.bback {
+  font-size: 1.3rem; text-decoration: none;
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(255,255,255,.08);
+  display: flex; align-items: center; justify-content: center;
+}
+.bback:active { background: rgba(255,255,255,.18); }
+.btitle { flex: 1; text-align: center; }
+.bname { font-size: 1.35rem; font-weight: 800; }
+.bsub { font-size: .78rem; color: #ffc0ad; font-weight: 600; min-height: 1em; }
+.bspacer { width: 42px; }
+
+/* ════════ scene ════════ */
+#scene {
+  position: relative;
+  flex: 1; min-height: 0; overflow: hidden;
+  background:
+    radial-gradient(circle at 85% 35%, #6b1a1a 0%, rgba(107,26,26,0) 45%),
+    linear-gradient(180deg, #3a1322 0%, #2a1020 60%, #401418 100%);
+}
+.ground {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 16%;
+  background: linear-gradient(180deg, #5a2018, #3a1410);
+  box-shadow: inset 0 4px 0 rgba(255,120,60,.18);
+}
+
+/* dragon (fixed on the right, bobbing) */
+#dragon {
+  position: absolute; right: 4%; top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+}
+.dsprite {
+  font-size: 5.4rem; line-height: 1;
+  filter: drop-shadow(0 6px 6px rgba(0,0,0,.45));
+  animation: boss-bob 2.6s ease-in-out infinite;
+}
+@keyframes boss-bob { 0%,100%{ transform: translateY(0) scaleX(-1);} 50%{ transform: translateY(-10px) scaleX(-1);} }
+#dragon.attack .dsprite { animation: boss-lunge .3s ease; }
+@keyframes boss-lunge { 0%,100%{ transform: translateY(0) scaleX(-1);} 50%{ transform: translate(-12px,2px) scaleX(-1) scale(1.08);} }
+#dragon.beaten .dsprite { animation: none; transform: none; font-size: 4.6rem; }
+
+/* Felix the chicken-knight (player) */
+#felix {
+  position: absolute; left: 0; top: 0;
+  width: 64px; height: 64px;
+  z-index: 4; will-change: transform;
+}
+.fsprite {
+  position: relative;
+  font-size: 3.2rem; line-height: 1;
+  filter: drop-shadow(0 4px 3px rgba(0,0,0,.4));
+}
+.fsprite .shield {
+  position: absolute; bottom: -4px; left: -12px;
+  font-size: 1.4rem; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4));
+}
+#felix.eat .fsprite { animation: chomp .28s ease-in-out 4; }
+@keyframes chomp { 0%,100%{ transform: scale(1);} 50%{ transform: scale(1.18,.9);} }
+#felix.hit { animation: shake .3s; }
+@keyframes shake { 0%,100%{transform:translate(var(--tx),var(--ty));} 25%{transform:translate(calc(var(--tx) - 7px),var(--ty));} 75%{transform:translate(calc(var(--tx) + 7px),var(--ty));} }
+
+/* thought bubble */
+.think {
+  position: absolute; bottom: 60px; left: 50%; transform: translateX(-30%);
+  background: #fff; color: #2a1f3d; font-weight: 800; font-size: .95rem;
+  padding: 8px 13px; border-radius: 16px; white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0,0,0,.3);
+  opacity: 0; transition: opacity .3s; z-index: 6;
+}
+.think.show { opacity: 1; }
+.think::before { content:""; position:absolute; left:14px; bottom:-9px; width:11px; height:11px; background:#fff; border-radius:50%; }
+.think::after  { content:""; position:absolute; left:10px; bottom:-18px; width:6px; height:6px; background:#fff; border-radius:50%; }
+
+/* fireballs */
+.fireball {
+  position: absolute; left: 0; top: 0;
+  font-size: 2rem; line-height: 1; z-index: 2;
+  filter: drop-shadow(0 0 6px rgba(255,140,40,.8));
+  will-change: transform;
+}
+
+/* flamethrower beam */
+.flame {
+  position: absolute; display: none; z-index: 5;
+  height: 46px; border-radius: 23px;
+  background: linear-gradient(90deg, rgba(255,220,80,.95), rgba(255,120,20,.95) 70%, rgba(255,60,20,.6));
+  box-shadow: 0 0 24px rgba(255,140,40,.9);
+  filter: blur(.4px);
+}
+.flame.on { display: block; animation: flicker .12s infinite alternate; }
+@keyframes flicker { from { opacity: .85; transform: scaleY(.92);} to { opacity: 1; transform: scaleY(1.08);} }
+
+/* hit flash */
+.hitflash {
+  position: absolute; inset: 0; z-index: 8; pointer-events: none;
+  background: rgba(255,60,30,.55); opacity: 0;
+}
+.hitflash.show { animation: flash .4s ease; }
+@keyframes flash { 0%{opacity:.7;} 100%{opacity:0;} }
+
+/* ════════ HUD / controls ════════ */
+#bhud {
+  flex-shrink: 0;
+  background: #160710;
+  padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.bhint { color: #ffcdbd; font-weight: 700; font-size: .9rem; text-align: center; min-height: 1.2em; }
+
+.controls {
+  width: 100%; max-width: 460px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 54px);
+  grid-template-rows: repeat(2, 50px);
+  gap: 7px; align-items: center; justify-items: center;
+}
+.pad {
+  width: 54px; height: 50px;
+  font-size: 1.35rem; font-weight: 900; color: #2a1020;
+  background: #ffe1d4; border: none; border-radius: 14px;
+  cursor: pointer; box-shadow: 0 4px 0 #c98f7e;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .06s, box-shadow .06s, background .1s;
+  touch-action: none;
+}
+.pad:active, .pad.pressed { transform: translateY(3px); box-shadow: 0 1px 0 #c98f7e; background: #ffcdb9; }
+.pad.up    { grid-column: 2; grid-row: 1; }
+.pad.left  { grid-column: 1; grid-row: 2; }
+.pad.right { grid-column: 3; grid-row: 2; }
+.pad.down  { grid-column: 2; grid-row: 2; }
+
+.flame-btn {
+  width: 110px; height: 108px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-family: inherit; font-weight: 900; font-size: 1rem; color: #fff;
+  background: #ff7a1a; border: none; border-radius: 50%;
+  cursor: pointer; box-shadow: 0 6px 0 #c1560c;
+  transition: transform .08s, box-shadow .08s, filter .2s, opacity .2s;
+}
+.flame-btn .fb-ico { font-size: 2.4rem; line-height: 1; }
+.flame-btn:active { transform: translateY(5px); box-shadow: 0 1px 0 #c1560c; }
+.flame-btn:disabled { opacity: .4; filter: grayscale(.6); cursor: default; box-shadow: 0 6px 0 #6b3a14; }
+.flame-btn:not(:disabled) { animation: ready 1s ease-in-out infinite; }
+@keyframes ready { 0%,100%{ box-shadow: 0 6px 0 #c1560c, 0 0 0 0 rgba(255,160,60,.7);} 50%{ box-shadow: 0 6px 0 #c1560c, 0 0 0 14px rgba(255,160,60,0);} }
+
+/* ════════ win overlay ════════ */
+#win {
+  position: absolute; inset: 0; z-index: 20;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(20,6,12,.72); backdrop-filter: blur(2px);
+}
+#win.show { display: flex; animation: fade .3s ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.win-card {
+  background: #fff; color: #2a1020; border-radius: 24px;
+  padding: 26px 24px; text-align: center; max-width: 330px; margin: 16px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.5); animation: pop .35s ease;
+}
+@keyframes pop { from { transform: scale(.7); opacity: 0;} to { transform: scale(1); opacity: 1;} }
+.win-emoji { font-size: 3.2rem; }
+.win-card h2 { margin: 8px 0 6px; font-size: 1.5rem; }
+.win-card p { margin: 4px 0; color: #6a5048; font-weight: 600; }
+.win-card .cont { margin-top: 10px; color: #d63a3a; font-weight: 800; }
+.win-btns { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+.bbtn {
+  font-family: inherit; font-weight: 800; font-size: 1rem; color: #fff;
+  background: #d63a3a; border: none; border-radius: 14px;
+  padding: 11px 18px; cursor: pointer; text-decoration: none;
+  box-shadow: 0 5px 0 #a32626; transition: transform .08s, box-shadow .08s;
+}
+.bbtn:active { transform: translateY(4px); box-shadow: 0 1px 0 #a32626; }
+.bbtn.ghost { background: #ffe7e1; color: #a32626; box-shadow: 0 5px 0 #e6b9b0; }
+.bbtn.ghost:active { box-shadow: 0 1px 0 #e6b9b0; }
+
+@media (max-height: 620px) {
+  .dsprite { font-size: 4.4rem; }
+  .fsprite { font-size: 2.7rem; }
+  .flame-btn { width: 94px; height: 92px; }
+}
