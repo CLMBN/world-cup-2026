@@ -245,10 +245,11 @@ html, body {
 
 .zzz {
   position: absolute; top: -10px; right: -6px; font-size: 1.8rem;
-  opacity: 0; transition: opacity .4s;
-  animation: float-z 2.4s ease-in-out infinite;
+  opacity: 0;
 }
-.pet.sleeping .zzz { opacity: 1; }
+/* only float the zzz while actually sleeping — the animation drives its
+   own opacity, so keep it off the base rule or it shows up when awake */
+.pet.sleeping .zzz { animation: float-z 2.4s ease-in-out infinite; }
 @keyframes float-z { 0%{transform:translateY(0);opacity:.4} 50%{transform:translateY(-14px);opacity:1} 100%{transform:translateY(-26px);opacity:0} }
 
 .status-bubble {
@@ -379,6 +380,11 @@ html, body {
 .sw-left  { left: 12px;  transform-origin: bottom center; animation: sway 3.6s ease-in-out infinite; }
 .sw-right { right: 12px; transform-origin: bottom center; animation: sway 4.4s ease-in-out infinite reverse; }
 @keyframes sway { 0%,100%{ transform: rotate(-7deg); } 50%{ transform: rotate(7deg); } }
+
+/* float the sea creature up into the open water, so its whole body
+   and head show above the sandy seabed (a land pet stays at bottom:14px
+   standing on the ground; a swimmer hovers up in the water column). */
+.pet.water { bottom: 44%; }
 
 /* the creature SWIMS instead of bouncing.
    Higher specificity (.pet.water…) overrides the land animations. */
