@@ -155,7 +155,7 @@ const FLAGS = {
   'brazil': '🇧🇷', 'cameroon': '🇨🇲', 'canada': '🇨🇦',
   'chile': '🇨🇱', 'colombia': '🇨🇴', 'costa rica': '🇨🇷',
   'croatia': '🇭🇷', 'czech republic': '🇨🇿', 'czechia': '🇨🇿', 'denmark': '🇩🇰',
-  'dr congo': '🇨🇩', 'democratic republic of congo': '🇨🇩',
+  'dr congo': '🇨🇩', 'democratic republic of congo': '🇨🇩', 'congo dr': '🇨🇩',
   'ecuador': '🇪🇨', 'egypt': '🇪🇬', 'england': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
   'france': '🇫🇷', 'germany': '🇩🇪', 'ghana': '🇬🇭',
   'hungary': '🇭🇺', 'iran': '🇮🇷', 'italy': '🇮🇹',
@@ -384,7 +384,7 @@ function normTeam(n) { return (n || '').toLowerCase().trim(); }
 function pairKey(a, b) { return [normTeam(a), normTeam(b)].sort().join('~'); }
 
 function groupLetter(g) {
-  return (g.abbr || (g.name || '').replace(/group\s*/i, '')).trim().toUpperCase();
+  return g.letter || parseGroupLetter(g) || (g.abbr || '').trim().toUpperCase();
 }
 function findGroup(letter) {
   return ALL_GROUPS_DATA.find(g => groupLetter(g) === letter);
@@ -965,7 +965,24 @@ function parseAllGroups(data) {
         teams,
       };
     }).filter(g => g.teams.length > 0);
+
+    // Assign a canonical A–L letter to each group so the bracket can resolve
+    // positions (1A, 2B, …). Prefer a letter parsed from the name/abbr; fall
+    // back to alphabetical order (ESPN returns the 12 groups A→L in order).
+    ALL_GROUPS_DATA.forEach((g, i) => {
+      g.letter = parseGroupLetter(g) || String.fromCharCode(65 + i);
+    });
   } catch(_) {}
+}
+
+// pull a standalone A–L out of a group's name or abbreviation, e.g.
+// "Group A" → "A", "Grp. K" → "K"; returns null if none found
+function parseGroupLetter(g) {
+  for (const raw of [g.name, g.abbr]) {
+    const m = (raw || '').toUpperCase().match(/(?:^|[^A-Z])([A-L])(?:[^A-Z]|$)/);
+    if (m) return m[1];
+  }
+  return null;
 }
 
 // ── ALERTS ───────────────────────────────────────────────────────────────────
