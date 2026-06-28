@@ -68,6 +68,7 @@ const T = {
     koLive:          '🔴 LIVE NOW · Round of 32',
     groupComplete:   'Group Stage Complete',
     colAdvance:      'Colombia advance to the knockout rounds!',
+    mexAdvance:      'Mexico advance to the knockout rounds!',
     checkFIFA:       'Check FIFA.com for Round of 32 schedule.',
     matchdayGroup:   (n) => `Matchday ${n} · Group K`,
     groupStage:      'Group Stage',
@@ -142,6 +143,7 @@ const T = {
     koLive:          '🔴 EN VIVO · Ronda de 32',
     groupComplete:   'Fase de grupos completada',
     colAdvance:      '¡Colombia avanza a la ronda eliminatoria!',
+    mexAdvance:      '¡México avanza a la ronda eliminatoria!',
     checkFIFA:       'Consulta FIFA.com para el calendario de eliminatorias.',
     matchdayGroup:   (n) => `Jornada ${n} · Grupo K`,
     groupStage:      'Fase de grupos',
@@ -273,9 +275,11 @@ const COL_KNOCKOUT = {
   ],
 };
 
-// the team's active knockout fixture, if any (Mexico can be added later)
+// the team's active knockout fixture, if any
 function knockoutMatchFor(team) {
-  return team === 'colombia' ? COL_KNOCKOUT : null;
+  if (team === 'colombia') return COL_KNOCKOUT;
+  if (team === 'mexico')   return MEX_KNOCKOUT;
+  return null;
 }
 
 const PLAYERS = [
@@ -350,6 +354,21 @@ const MEXICO_MATCHES = [
     ]
   },
 ];
+
+// Mexico's knockout fixture (Round of 32). Group A winners vs Ecuador.
+const MEX_KNOCKOUT = {
+  id: 'mex-ecu', matchday: 'R32', round: 'r32',
+  kickoffUTC: '2026-07-01T01:00:00Z',          // Tue Jun 30 · 9:00 PM ET
+  home: { name: 'Mexico',  flag: '🇲🇽', espn: 'mexico' },
+  away: { name: 'Ecuador', flag: '🇪🇨', espn: 'ecuador' },
+  venue: 'Estadio Banorte', city: 'Mexico City, MX', tv: 'FOX',
+  streams: [
+    { name: 'FOX (Free OTA!)', type: 'free',  url: 'https://www.fox.com/live',           note: 'Free broadcast TV' },
+    { name: 'Telemundo',       type: 'free',  url: 'https://www.telemundo.com/deportes', note: 'Free OTA antenna, Spanish' },
+    { name: 'Peacock',         type: 'cable', url: 'https://www.peacocktv.com',          note: 'Telemundo stream online' },
+    { name: 'Tubi',            type: 'free',  url: 'https://tubitv.com',                 note: 'Selected WC games free' },
+  ],
+};
 
 const MEXICO_PLAYERS = [
   { pos:'GK',  name:'Guillermo Ochoa',    club:'Club América' },
@@ -1824,7 +1843,7 @@ function heroMatchCard(target, upcomingEyebrow, liveEyebrow) {
 // compact "advanced to the knockout rounds" banner
 function heroCongratsHtml(teamName) {
   const { accent, border, bg } = heroTheme();
-  const title = ACTIVE_TEAM === 'colombia' ? T[LANG].colAdvance : `${teamName} advance to the knockout rounds!`;
+  const title = ACTIVE_TEAM === 'mexico' ? T[LANG].mexAdvance : T[LANG].colAdvance;
   return `
       <div class="hero hero-congrats" style="border-color:${border};background:${bg}">
         <div class="congrats-emoji">🎉</div>
