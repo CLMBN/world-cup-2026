@@ -446,22 +446,27 @@ main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex
 .b-team.tbd .b-name { color: var(--muted); font-style: italic; }
 .b-team.tbd .b-flag { opacity: .35; }
 
-/* 🦖 Dino Pet easter egg — small, faded footprint at the very bottom
-   of the group standings. Discoverable but not loud. */
-.dino-egg {
-  display: block;
-  width: max-content;
-  margin: 2.5rem auto 1rem;
+/* 🦖🐥 Hidden easter eggs at the very bottom of the group standings:
+   the Dino Pet game on the left, Felix's Time Traveler on the right.
+   Small and faded — discoverable but not loud. */
+.egg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 2.5rem .6rem 1rem;
+}
+.egg-link {
   font-size: 1.4rem;
   text-decoration: none;
   opacity: .18;
   filter: grayscale(.6);
   transition: opacity .25s ease, transform .25s ease, filter .25s ease;
 }
-.dino-egg:hover,
-.dino-egg:focus-visible {
+.egg-link:hover,
+.egg-link:focus-visible {
   opacity: 1;
   filter: grayscale(0);
-  transform: scale(1.6) rotate(-8deg);
   outline: none;
 }
+.dino-egg:hover, .dino-egg:focus-visible { transform: scale(1.6) rotate(-8deg); }
+.time-egg:hover, .time-egg:focus-visible { transform: scale(1.6) rotate(8deg); }
