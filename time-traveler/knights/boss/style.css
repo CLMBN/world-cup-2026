@@ -3,7 +3,7 @@
    it becomes a spicy chicken leg, Felix eats it.
    ════════════════════════════════════════════════ */
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 html, body {
   margin: 0; height: 100%;

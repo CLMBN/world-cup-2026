@@ -3,7 +3,7 @@
    A winding maze: ride the knight to the dragon.
    ════════════════════════════════════════════════ */
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 html, body {
   margin: 0; height: 100%;
