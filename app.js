@@ -235,7 +235,7 @@ const MATCHES = [
     id: 'col-drc', matchday: 2,
     kickoffUTC: '2026-06-24T02:00:00Z',
     home: { name: 'Colombia', flag: '🇨🇴', espn: 'colombia' },
-    away: { name: 'DR Congo',  flag: '🇨🇩', espn: 'dr congo' },
+    away: { name: 'Congo DR',  flag: '🇨🇩', espn: 'congo' },
     venue: 'Estadio Akron', city: 'Guadalajara, MX', tv: 'FS1',
     streams: [
       { name: 'FS1',             type: 'cable', url: 'https://www.foxsports.com/live',         note: 'Cable/satellite required' },
@@ -310,7 +310,7 @@ const NEWS = [
 let STANDINGS = [
   { team:'Portugal',   flag:'🇵🇹', gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0 },
   { team:'Colombia',   flag:'🇨🇴', gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0 },
-  { team:'DR Congo',   flag:'🇨🇩', gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0 },
+  { team:'Congo DR',   flag:'🇨🇩', gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0 },
   { team:'Uzbekistan', flag:'🇺🇿', gp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0 },
 ];
 
