@@ -15,6 +15,11 @@ const T = {
     bracketGroupStage: 'Group Stage in Progress',
     bracketSoon:     'Knockout bracket will appear here once the group stage ends.',
     roundLabels: { r32:'Round of 32', r16:'Round of 16', qf:'Quarterfinals', sf:'Semifinals', '3rd':'3rd Place', final:'Final' },
+    projTitle:       'Projected Round of 32',
+    projNote:        'Based on current group standings · updates live as results come in',
+    projAdvance:     'Top 2 of each group + 8 best 3rd-place teams advance',
+    posThird:        '3rd',
+    tbd:             'TBD',
     live:            'Live',
     refresh:         '↻ Refresh',
     updated:         'Updated',
@@ -79,6 +84,11 @@ const T = {
     bracketGroupStage: 'Fase de grupos en curso',
     bracketSoon:     'El cuadro eliminatorio aparecerá aquí al terminar la fase de grupos.',
     roundLabels: { r32:'Ronda de 32', r16:'Ronda de 16', qf:'Cuartos de Final', sf:'Semifinales', '3rd':'3er Puesto', final:'Final' },
+    projTitle:       'Ronda de 32 Proyectada',
+    projNote:        'Según la tabla actual de grupos · se actualiza en vivo con los resultados',
+    projAdvance:     'Los 2 mejores de cada grupo + los 8 mejores terceros avanzan',
+    posThird:        '3º',
+    tbd:             'Por definir',
     live:            'En vivo',
     refresh:         '↻ Actualizar',
     updated:         'Actualizado',
@@ -350,6 +360,73 @@ let MATCH_SUMMARIES = {}; // key: "homeTeamLower|awayTeamLower"
 let BRACKET_GAMES = {};   // key: round id → array of games
 
 const ROUND_ORDER = ['r32', 'r16', 'qf', 'sf', '3rd', 'final'];
+
+// ── PROJECTED BRACKET ─────────────────────────────────────────────────────────
+// Official FIFA 2026 Round of 32 template, fixed by group finishing position.
+//   · 4 winner-vs-runner-up cross pairs   (C/F and H/J)
+//   · 4 runner-up-vs-runner-up matches    (A-B, D-G, E-I, K-L)
+//   · 8 winner-vs-best-3rd matches        (A, B, D, E, G, I, K, L)
+// Each entry is [home position, away position]. '1X' = Group X winner,
+// '2X' = Group X runner-up, '3rd' = one of the eight best third-placed teams.
+const R32_SLOTS = [
+  ['1A', '3rd'], ['2A', '2B'],
+  ['1C', '2F'], ['1L', '3rd'],
+  ['1E', '3rd'], ['2E', '2I'],
+  ['1G', '3rd'], ['1H', '2J'],
+  ['1I', '3rd'], ['2K', '2L'],
+  ['1F', '2C'], ['1K', '3rd'],
+  ['1D', '3rd'], ['2D', '2G'],
+  ['1J', '2H'], ['1B', '3rd'],
+];
+
+function groupLetter(g) {
+  return (g.abbr || (g.name || '').replace(/group\s*/i, '')).trim().toUpperCase();
+}
+function findGroup(letter) {
+  return ALL_GROUPS_DATA.find(g => groupLetter(g) === letter);
+}
+// teams in ALL_GROUPS_DATA are pre-sorted by pts / GD / GF in parseAllGroups
+function teamAtPos(pos) {
+  const rank = +pos[0], letter = pos.slice(1);
+  const g = findGroup(letter);
+  if (!g || !g.teams || g.teams.length < rank) return null;
+  return g.teams[rank - 1];
+}
+// the eight best third-placed teams, ranked by FIFA tiebreakers
+function bestThirds() {
+  const thirds = ALL_GROUPS_DATA
+    .filter(g => g.teams && g.teams.length >= 3)
+    .map(g => ({ letter: groupLetter(g), used: false, ...g.teams[2] }));
+  thirds.sort((a, b) =>
+    b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf ||
+    String(a.team).localeCompare(String(b.team)));
+  return thirds.slice(0, 8);
+}
+
+function buildProjectedR32() {
+  const thirds = bestThirds();
+  const slot = pos => {
+    const t = teamAtPos(pos);
+    return { pos, name: t ? t.team : null, letter: pos.slice(1) };
+  };
+  // assign the next-best unused third, preferring one not from the winner's
+  // own group; fall back to the best remaining if every option conflicts so
+  // all eight slots still fill (the exact routing is FIFA's once groups end)
+  const thirdSlot = oppLetter => {
+    const pick = thirds.find(t => !t.used && t.letter !== oppLetter)
+              || thirds.find(t => !t.used);
+    if (!pick) return { pos: '3rd', name: null, letter: null };
+    pick.used = true;
+    return { pos: '3rd', name: pick.team, letter: pick.letter };
+  };
+  return R32_SLOTS.map(([hp, ap]) => {
+    // resolve the known (group winner/runner-up) side first so the third
+    // place team can avoid being drawn against its own group
+    if (ap === '3rd') { const home = slot(hp); return { home, away: thirdSlot(home.letter) }; }
+    if (hp === '3rd') { const away = slot(ap); return { home: thirdSlot(away.letter), away }; }
+    return { home: slot(hp), away: slot(ap) };
+  });
+}
 
 function detectRound(notes) {
   const text = (notes || []).map(n => (n.headline || n.text || '')).join(' ').toLowerCase();
@@ -1183,16 +1260,50 @@ function bracketTeamHtml(name, score, isFinal, homeWon) {
   </div>`;
 }
 
+function projSlotHtml(s) {
+  const known = !!s.name;
+  const nm    = (s.name || '').toLowerCase();
+  const hl    = nm === 'colombia' ? ' hl-col' : nm === 'mexico' ? ' hl-mex' : '';
+  const code  = s.pos === '3rd' ? T[LANG].posThird : s.pos;
+  const flag  = known ? flagFor(s.name) : '◦';
+  const label = known ? s.name : T[LANG].tbd;
+  return `<div class="b-team${hl}${known ? '' : ' tbd'}">
+    <span class="b-pos">${code}</span>
+    <span class="b-flag">${flag}</span>
+    <span class="b-name">${label}</span>
+  </div>`;
+}
+
+function renderProjectedBracket(el) {
+  const matches = buildProjectedR32();
+  const matchesHtml = matches.map(m => `
+    <div class="b-match b-proj">
+      ${projSlotHtml(m.home)}
+      ${projSlotHtml(m.away)}
+    </div>`).join('');
+
+  el.innerHTML = `<div class="bracket-proj">
+    <div class="bracket-proj-banner">
+      <div class="proj-title">🔮 ${T[LANG].projTitle}</div>
+      <div class="proj-note">${T[LANG].projNote}</div>
+    </div>
+    <div class="bracket-round">
+      <div class="bracket-round-label">${T[LANG].roundLabels.r32}</div>
+      <div class="bracket-matches">${matchesHtml}</div>
+    </div>
+    <div class="bracket-proj-foot">🟢 ${T[LANG].projAdvance}</div>
+  </div>`;
+}
+
 function renderBracket() {
   const el = document.getElementById('bracket-rounds');
   if (!el) return;
 
   const activeRounds = ROUND_ORDER.filter(r => BRACKET_GAMES[r]?.length);
   if (activeRounds.length === 0) {
-    el.innerHTML = `<div class="bracket-empty">
-      <div class="empty-title">${T[LANG].bracketGroupStage}</div>
-      <div style="margin-top:.5rem;font-size:.78rem">${T[LANG].bracketSoon}</div>
-    </div>`;
+    // No live knockout fixtures yet — show the projected bracket so it fills
+    // in progressively as group results qualify teams.
+    renderProjectedBracket(el);
     return;
   }
 
