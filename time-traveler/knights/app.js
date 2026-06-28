@@ -94,8 +94,9 @@ function tryMove(ox, oy) {
   if (nx < 0 || ny < 0 || nx >= W || ny >= H) return;
   if (grid[ny][nx]) return;                 // blocked by a wall
   px = nx; py = ny;
-  if (ox < 0) playerEl.classList.add("face-left");
-  else if (ox > 0) playerEl.classList.remove("face-left");
+  // 🏇 faces left by default; flip it to lead head-first to the right
+  if (ox > 0) playerEl.classList.add("face-right");
+  else if (ox < 0) playerEl.classList.remove("face-right");
   placeToken(playerEl, px, py);
   if (px === dxc && py === dyc) win();
 }
@@ -118,7 +119,7 @@ function win() {
 // ---------- new game ----------
 function newGame() {
   won = false;
-  playerEl.classList.remove("meet", "face-left");
+  playerEl.classList.remove("meet", "face-right");
   dragonEl.classList.remove("roar");
   winEl.classList.remove("show");
   khint.textContent = "Use the arrows to ride through the maze 🧭";

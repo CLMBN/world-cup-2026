@@ -78,7 +78,7 @@ html, body {
   line-height: 1;
   filter: drop-shadow(0 2px 2px rgba(0,0,0,.4));
 }
-#player.face-left .psprite { transform: scaleX(-1); }
+#player.face-right .psprite { transform: scaleX(-1); }
 .dsprite { animation: dragon-bob 2.4s ease-in-out infinite; }
 @keyframes dragon-bob { 0%,100%{ transform: translateY(0) scale(1);} 50%{ transform: translateY(-3px) scale(1.04);} }
 #dragon.roar .dsprite { animation: roar .5s ease-in-out infinite; font-size: calc(var(--cell,28px) * 1.05); }
