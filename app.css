@@ -343,7 +343,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex
 .bracket-rounds {
   display: flex;
   gap: .75rem;
-  align-items: flex-start;
+  align-items: stretch;
   min-width: max-content;
   padding: .25rem;
 }
@@ -353,7 +353,31 @@ main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex
   color: var(--col-yellow); text-align: center; padding: .4rem 0 .5rem;
   border-bottom: 1px solid var(--border);
 }
-.bracket-matches { display: flex; flex-direction: column; gap: .45rem; }
+/* later rounds have fewer matches — spread them so the bracket reads top-to-bottom */
+.bracket-matches { display: flex; flex-direction: column; gap: .45rem; flex: 1; justify-content: space-around; }
+
+/* round navigation tabs */
+.bracket-tabs {
+  display: flex; gap: .4rem; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding: .15rem .1rem .6rem;
+}
+.bracket-tabs::-webkit-scrollbar { display: none; }
+.bracket-tab {
+  flex: 0 0 auto; font-size: .7rem; font-weight: 700; cursor: pointer;
+  padding: .4rem .75rem; border-radius: 999px; white-space: nowrap;
+  border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+}
+.bracket-tab.active { background: var(--col-yellow); color: #000; border-color: var(--col-yellow); }
+.bracket-note { font-size: .66rem; color: var(--muted); padding: .1rem .2rem .5rem; line-height: 1.3; }
+
+/* per-match header (match number + optional sub-label) */
+.b-mhead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .2rem .5rem; border-bottom: 1px solid var(--border); background: var(--surface2);
+}
+.b-mno { font-size: .52rem; font-weight: 800; letter-spacing: .04em; color: var(--muted); }
+.b-sub { font-size: .52rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--col-yellow); }
+.b-feed { font-style: italic; }
 .b-match {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; overflow: hidden;
