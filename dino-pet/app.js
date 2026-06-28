@@ -10,12 +10,16 @@
 const SAVE_KEY = "dinoPetSave_v1";
 
 // How fast each stat drops, in points per real-world minute.
+// Tuned so a kid actually sees the pet get hungry/bored within a
+// minute or two of play, without it ever feeling stressful.
 const DECAY = {
-  hunger: 0.45,   // gets hungry
-  happy:  0.35,   // gets bored
-  energy: 0.30,   // gets tired while awake
+  hunger: 4,     // gets hungry
+  happy:  3,     // gets bored
+  energy: 2.5,   // gets tired while awake
 };
-const SLEEP_RECOVER = 1.6; // energy points gained per minute asleep
+// Energy gained per minute asleep. Big on purpose: a nap should be a
+// quick, clearly visible recharge (~1.5%/sec), not a frozen-looking bar.
+const SLEEP_RECOVER = 90;
 
 // ---- game state ----
 let pet = null;
@@ -92,13 +96,16 @@ function render() {
 
   $("dino").textContent = pet.species;
 
+  const isWater = pet.habitat === "water";
   const mood = moodInfo();
   const petEl = $("pet");
-  petEl.className = "pet " + mood.cls;
+  petEl.className = "pet " + mood.cls + (isWater ? " water" : "");
   $("mood-line").textContent = mood.text;
 
-  // night look while sleeping
-  $("scene").classList.toggle("night", pet.sleeping);
+  // underwater vs land scene, dimmed while sleeping
+  const scene = $("scene");
+  scene.classList.toggle("water", isWater);
+  scene.classList.toggle("night", pet.sleeping);
 
   // sleep button reflects state
   const sb = $("btn-sleep");
@@ -157,11 +164,13 @@ function feed() {
   if (pet.hunger >= 100) { bubble("I'm full! 😋"); return; }
   pet.hunger = clamp(pet.hunger + 28);
   pet.happy  = clamp(pet.happy + 4);
+  const foodEmoji = pet.habitat === "water" ? "🦐" : "🍖";
   const food = $("food");
+  food.textContent = foodEmoji;
   food.classList.remove("fly"); void food.offsetWidth; food.classList.add("fly");
   flash("eating");
   bubble("Yum yum! 😋");
-  burst("🍖", 4);
+  burst(foodEmoji, 4);
   render(); save();
 }
 
@@ -198,10 +207,11 @@ function startGame() {
   tickTimer = setInterval(tick, 1000);
 }
 
-function newPet(name, species) {
+function newPet(name, species, habitat) {
   pet = {
     name: name || "Rex",
     species: species || "🦖",
+    habitat: habitat || "land",   // "land" or "water"
     hunger: 100, happy: 100, energy: 100,
     sleeping: false,
     born: Date.now(),
@@ -214,6 +224,7 @@ function newPet(name, species) {
 // ════════════════ wire up the start screen ════════════════
 function initStartScreen() {
   let chosenDino = "🦖";
+  let chosenHabitat = "land";
   let hatched = false;
 
   const egg = $("egg");
@@ -239,11 +250,12 @@ function initStartScreen() {
     document.querySelectorAll(".pick-btn").forEach(b => b.classList.remove("selected"));
     btn.classList.add("selected");
     chosenDino = btn.dataset.dino;
+    chosenHabitat = btn.dataset.habitat || "land";
   });
 
   $("btn-start").addEventListener("click", () => {
     const name = $("name-input").value.trim().slice(0, 12) || "Rex";
-    newPet(name, chosenDino);
+    newPet(name, chosenDino, chosenHabitat);
   });
   $("name-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") $("btn-start").click();

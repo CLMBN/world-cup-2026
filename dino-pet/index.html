@@ -34,10 +34,12 @@
 
         <p class="field-label">Pick your dino:</p>
         <div class="dino-pick" id="dino-pick">
-          <button class="pick-btn selected" data-dino="🦖" aria-label="T-Rex">🦖</button>
-          <button class="pick-btn" data-dino="🦕" aria-label="Brontosaurus">🦕</button>
-          <button class="pick-btn" data-dino="🐲" aria-label="Dragon dino">🐲</button>
+          <button class="pick-btn selected" data-dino="🦖" data-habitat="land" aria-label="T-Rex">🦖</button>
+          <button class="pick-btn" data-dino="🦕" data-habitat="land" aria-label="Brontosaurus">🦕</button>
+          <button class="pick-btn" data-dino="🐲" data-habitat="land" aria-label="Dragon dino">🐲</button>
+          <button class="pick-btn" data-dino="🐉" data-habitat="water" aria-label="Sea Dragon">🐉</button>
         </div>
+        <p class="pick-note">🐉 lives underwater &amp; loves to swim!</p>
 
         <p class="field-label">Give it a name:</p>
         <input id="name-input" class="name-input" type="text" maxlength="12"
@@ -79,6 +81,13 @@
           <span class="cloud c1">☁️</span>
           <span class="cloud c2">☁️</span>
         </div>
+
+        <!-- underwater decor (only shown for sea creatures) -->
+        <div class="bubbles" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="seaweed sw-left" aria-hidden="true">🌿</div>
+        <div class="seaweed sw-right" aria-hidden="true">🪸</div>
 
         <div class="pet" id="pet">
           <div class="zzz" id="zzz">💤</div>

@@ -110,18 +110,19 @@ html, body {
 .hatched-line { font-size: 1.5rem; font-weight: 800; margin: 0 0 14px; }
 .field-label { font-weight: 700; margin: 14px 0 8px; color: #6a6480; }
 
-.dino-pick { display: flex; gap: 10px; justify-content: center; }
+.dino-pick { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .pick-btn {
-  font-size: 2.6rem;
+  font-size: 2.3rem;
   background: #f1f0fa;
   border: 3px solid transparent;
   border-radius: 18px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
   transition: transform .1s, border-color .1s, background .1s;
 }
 .pick-btn:active { transform: scale(.9); }
 .pick-btn.selected { border-color: var(--grass); background: #e3f9ec; }
+.pick-note { font-size: .8rem; font-weight: 700; color: #4a8fc7; margin: 10px 0 0; }
 
 .name-input {
   width: 100%;
@@ -324,4 +325,80 @@ html, body {
 @media (max-height: 720px) {
   .scene { height: 230px; }
   .dino { font-size: 5rem; }
+}
+
+/* ════════════════════════════════════════════════
+   UNDERWATER MODE — for sea creatures (🐉 sea dragon)
+   Activated by the .water class on .scene and .pet.
+   ════════════════════════════════════════════════ */
+
+.scene.water {
+  background: linear-gradient(180deg, #2aa6d6 0%, #1c7bb0 45%, #0d4f7a 80%, #073a5c 100%);
+}
+.scene.water.night {
+  background: linear-gradient(180deg, #103a55 0%, #0a2c44 55%, #061d2e 100%);
+}
+
+/* hide the sky bits when underwater */
+.scene.water .sun,
+.scene.water .moon,
+.scene.water .clouds { display: none; }
+
+/* turn the grassy ground into a sandy seabed */
+.scene.water .ground {
+  background: #e9d8a6;
+  background-image: repeating-linear-gradient(90deg, transparent 0 16px, rgba(0,0,0,.06) 16px 18px);
+}
+.scene.water.night .ground { filter: brightness(.55); }
+
+/* rising bubbles */
+.bubbles { display: none; position: absolute; inset: 0; pointer-events: none; }
+.scene.water .bubbles { display: block; }
+.bubbles span {
+  position: absolute; bottom: -22px; border-radius: 50%;
+  background: rgba(255,255,255,.18);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+  animation: bubble-up linear infinite;
+}
+.bubbles span:nth-child(1){ left: 12%; width: 10px; height: 10px; animation-duration: 6s;   animation-delay: 0s;   }
+.bubbles span:nth-child(2){ left: 28%; width: 16px; height: 16px; animation-duration: 8s;   animation-delay: 1.5s; }
+.bubbles span:nth-child(3){ left: 45%; width: 8px;  height: 8px;  animation-duration: 5s;   animation-delay: .8s;  }
+.bubbles span:nth-child(4){ left: 62%; width: 14px; height: 14px; animation-duration: 7s;   animation-delay: 2.2s; }
+.bubbles span:nth-child(5){ left: 78%; width: 11px; height: 11px; animation-duration: 6.5s; animation-delay: .4s;  }
+.bubbles span:nth-child(6){ left: 90%; width: 9px;  height: 9px;  animation-duration: 5.5s; animation-delay: 1.1s; }
+@keyframes bubble-up {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  12%  { opacity: .9; }
+  88%  { opacity: .9; }
+  100% { transform: translate(14px, -300px); opacity: 0; }
+}
+
+/* swaying seaweed / coral */
+.seaweed { display: none; position: absolute; bottom: 4px; font-size: 2.4rem; }
+.scene.water .seaweed { display: block; }
+.sw-left  { left: 12px;  transform-origin: bottom center; animation: sway 3.6s ease-in-out infinite; }
+.sw-right { right: 12px; transform-origin: bottom center; animation: sway 4.4s ease-in-out infinite reverse; }
+@keyframes sway { 0%,100%{ transform: rotate(-7deg); } 50%{ transform: rotate(7deg); } }
+
+/* the creature SWIMS instead of bouncing.
+   Higher specificity (.pet.water…) overrides the land animations. */
+.pet.water .dino { animation: swim 3s ease-in-out infinite; }
+@keyframes swim {
+  0%   { transform: translateX(-26px) rotate(-4deg); }
+  50%  { transform: translateX(26px) rotate(4deg); }
+  100% { transform: translateX(-26px) rotate(-4deg); }
+}
+.pet.water.happy .dino { animation: swim-fast 1.1s ease-in-out infinite; }
+@keyframes swim-fast {
+  0%   { transform: translateX(-30px) rotate(-9deg) scale(1.05); }
+  50%  { transform: translateX(30px) rotate(9deg) scale(1.05); }
+  100% { transform: translateX(-30px) rotate(-9deg) scale(1.05); }
+}
+.pet.water.sad .dino {
+  animation: swim 6s ease-in-out infinite;
+  filter: drop-shadow(0 8px 6px rgba(0,0,0,.25)) grayscale(.4) brightness(.9);
+}
+.pet.water.sleeping .dino {
+  animation: swim 7s ease-in-out infinite;
+  filter: drop-shadow(0 8px 6px rgba(0,0,0,.25)) brightness(.85);
 }
