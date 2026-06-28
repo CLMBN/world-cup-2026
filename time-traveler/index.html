@@ -17,6 +17,7 @@
 
     <!-- ════════════════ THE SCENE ════════════════ -->
     <div id="scene">
+      <div class="diff-badge" id="diff-badge"></div>
       <!-- sky decor -->
       <div class="sun">☀️</div>
       <span class="cloud k1">☁️</span>
@@ -46,6 +47,9 @@
       </div>
 
       <div class="ground"></div>
+
+      <!-- rolling boulders (medium/hard) -->
+      <div id="obstacles"></div>
 
       <!-- time-travel destination chooser (black starry screen) -->
       <div id="travel">
@@ -79,6 +83,32 @@
         <button class="pad left"  data-dir="left"  aria-label="Left">◀</button>
         <button class="pad right" data-dir="right" aria-label="Right">▶</button>
         <button class="pad down"  data-dir="down"  aria-label="Down">▼</button>
+      </div>
+    </div>
+
+    <!-- ════════════════ START SCREEN ════════════════ -->
+    <div id="start" class="show">
+      <div class="start-inner">
+        <div class="start-emoji">🐥⏳</div>
+        <h1>Time Traveler</h1>
+        <p class="start-sub">Choose your challenge</p>
+        <div class="diff-grid">
+          <button class="diff" data-diff="easy">
+            <span class="diff-ico">🐥</span>
+            <span class="diff-name">Easy</span>
+            <span class="diff-desc">A gentle stroll</span>
+          </button>
+          <button class="diff" data-diff="medium">
+            <span class="diff-ico">🪨</span>
+            <span class="diff-name">Medium</span>
+            <span class="diff-desc">Dodge the rocks!</span>
+          </button>
+          <button class="diff" data-diff="hard">
+            <span class="diff-ico">🔥</span>
+            <span class="diff-name">Hard</span>
+            <span class="diff-desc">For brave knights</span>
+          </button>
+        </div>
       </div>
     </div>
 

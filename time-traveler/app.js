@@ -13,9 +13,28 @@ const van   = document.getElementById("van");
 const hint  = document.getElementById("hint");
 const travel = document.getElementById("travel");
 const stars = document.getElementById("stars");
+const obstaclesEl = document.getElementById("obstacles");
+const startEl = document.getElementById("start");
+const diffBadge = document.getElementById("diff-badge");
 
 const HERO = 96;           // hero box size (px)
 const SPEED = 300;         // movement speed (px/sec)
+
+// ---------- difficulty (shared across the whole Time Traveler journey) ----------
+function getDiff() { try { return localStorage.getItem("ttDiff") || "easy"; } catch { return "easy"; } }
+function setDiff(d) { diff = d; try { localStorage.setItem("ttDiff", d); } catch {} updateBadge(); }
+let diff = getDiff();
+
+// rolling-boulder gauntlet on the way to the van
+const WALK_CFG = {
+  easy:   { count: 0, speed: 0 },
+  medium: { count: 2, speed: 160 },
+  hard:   { count: 3, speed: 220 },
+};
+const DIFF_LABEL = { easy: "🐥 Easy", medium: "🪨 Medium", hard: "🔥 Hard" };
+function updateBadge() { if (diffBadge) diffBadge.textContent = DIFF_LABEL[diff] || ""; }
+
+let obstacles = [];
 
 let x = 0, y = 0;          // hero top-left, in scene px
 let facing = 1;            // 1 = facing right, -1 = facing left
@@ -55,6 +74,7 @@ function startIntro() {
   hero.classList.remove("cheer");
   think.classList.remove("show");
   travel.classList.remove("show");
+  clearObstacles();
   hint.style.opacity = "0";
 
   const { w, h } = sceneSize();
@@ -79,9 +99,69 @@ function startIntro() {
       hint.style.opacity = "1";
       controlsOn = true;
       lastT = 0;
+      spawnObstacles();
     }
   }
   requestAnimationFrame(step);
+}
+
+// ---------- rolling boulders (medium / hard) ----------
+function clearObstacles() { obstacles.forEach(o => o.el.remove()); obstacles = []; }
+
+function spawnObstacles() {
+  clearObstacles();
+  const cfg = WALK_CFG[diff];
+  if (!cfg.count) return;
+  const { w, h } = sceneSize();
+  const topMin = h * 0.34, botMax = h - HERO - 6;
+  for (let i = 0; i < cfg.count; i++) {
+    const frac = 0.34 + (i + 1) * (0.44 / (cfg.count + 1));   // spread between Felix & van
+    const el = document.createElement("div");
+    el.className = "boulder";
+    el.textContent = "🪨";
+    obstaclesEl.appendChild(el);
+    obstacles.push({
+      el, frac,
+      y: topMin + Math.random() * (botMax - topMin),
+      vy: (Math.random() < 0.5 ? -1 : 1) * cfg.speed,
+    });
+  }
+}
+
+function updateObstacles(dt) {
+  if (!obstacles.length) return;
+  const { w, h } = sceneSize();
+  const topMin = h * 0.34, botMax = h - HERO - 6;
+  const hcx = x + HERO / 2, hcy = y + HERO / 2;
+  for (const o of obstacles) {
+    o.y += o.vy * dt;
+    if (o.y < topMin) { o.y = topMin; o.vy *= -1; }
+    if (o.y > botMax) { o.y = botMax; o.vy *= -1; }
+    const ox = w * o.frac;
+    o.el.style.transform = `translate(${ox - 28}px, ${o.y - 28}px)`;
+    if (Math.hypot(ox - hcx, o.y - hcy) < 30 + HERO * 0.26) { hitObstacle(); return; }
+  }
+}
+
+function hitObstacle() {
+  const { w, h } = sceneSize();
+  x = Math.max(20, w * 0.10);
+  y = h - HERO - 6 - h * 0.08;
+  place();
+  hint.textContent = "Oops! 🪨 Back to the start!";
+  clearTimeout(hitObstacle._t);
+  hitObstacle._t = setTimeout(() => {
+    if (controlsOn && !won) hint.textContent = "Use the arrows to reach the Time Machine! 🚐";
+  }, 1100);
+}
+
+// show the start screen (difficulty picker)
+function showStart() {
+  won = true; controlsOn = false;
+  clearObstacles();
+  travel.classList.remove("show");
+  think.classList.remove("show");
+  startEl.classList.add("show");
 }
 
 // ---------- main movement loop ----------
@@ -112,6 +192,7 @@ function loop(t) {
     } else {
       hero.classList.remove("walking");
     }
+    updateObstacles(dt);
   }
   requestAnimationFrame(loop);
 }
@@ -140,6 +221,7 @@ function arrive() {
   showThought("Whoa! A Time Machine! 🤩");
   van.classList.add("active");
   hint.style.opacity = "0";
+  clearObstacles();
   makeStars();
   setTimeout(() => travel.classList.add("show"), 700);
 }
@@ -191,11 +273,21 @@ document.querySelectorAll(".pad").forEach((btn) => {
   btn.addEventListener("pointercancel", release);
 });
 
-document.getElementById("btn-again").addEventListener("click", startIntro);
+// "start over" goes back to the difficulty picker
+document.getElementById("btn-again").addEventListener("click", showStart);
+
+// difficulty buttons start the game
+document.querySelectorAll(".diff").forEach((b) =>
+  b.addEventListener("click", () => {
+    setDiff(b.dataset.diff);
+    startEl.classList.remove("show");
+    startIntro();
+  })
+);
 
 // recompute Felix position if the screen rotates / resizes
 window.addEventListener("resize", () => { if (!won) { clampPos(); place(); } });
 
 // ════════════════ boot ════════════════
-startIntro();
+updateBadge();          // start screen is shown by default; pick a level to play
 requestAnimationFrame(loop);
