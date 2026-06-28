@@ -5,7 +5,12 @@
    to the dragon in the bottom-right.
    ════════════════════════════════════════════════ */
 
-const COLS = 6, ROWS = 6;          // logical maze cells
+// difficulty (chosen on the Time Traveler start screen) → bigger maze = harder
+const DIFF = (() => { try { return localStorage.getItem("ttDiff") || "easy"; } catch { return "easy"; } })();
+const MSIZE = { easy: 6, medium: 8, hard: 10 };
+const DIFF_LABEL = { easy: "🐥 Easy", medium: "🪨 Medium", hard: "🔥 Hard" };
+
+const COLS = MSIZE[DIFF] || 6, ROWS = MSIZE[DIFF] || 6;   // logical maze cells
 const W = COLS * 2 + 1;            // rendered grid width (incl. walls)
 const H = ROWS * 2 + 1;            // rendered grid height
 
@@ -167,4 +172,6 @@ document.getElementById("btn-again").addEventListener("click", newGame);
 window.addEventListener("resize", sizeMaze);
 
 // ════════════════ boot ════════════════
+const kbadge = document.getElementById("kbadge");
+if (kbadge) kbadge.textContent = DIFF_LABEL[DIFF] || "";
 newGame();

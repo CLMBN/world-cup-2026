@@ -24,8 +24,16 @@ const winEl    = document.getElementById("win");
 
 const FELIX = 64;          // felix box size
 const SPEED = 320;         // felix move speed (px/s)
-const HIT_R = 28;          // collision radius (forgiving for kids)
-const SPAWN = 1.1;         // seconds between fireballs
+
+// difficulty (chosen on the Time Traveler start screen)
+const DIFF = (() => { try { return localStorage.getItem("ttDiff") || "easy"; } catch { return "easy"; } })();
+const DIFF_LABEL = { easy: "🐥 Easy", medium: "🪨 Medium", hard: "🔥 Hard" };
+const BCFG = {
+  easy:   { spawn: 1.10, smin: 190, smax: 310, per: 1, hitR: 28, rangeX: 165, rangeY: 150 },
+  medium: { spawn: 0.78, smin: 240, smax: 380, per: 1, hitR: 30, rangeX: 145, rangeY: 135 },
+  hard:   { spawn: 0.55, smin: 300, smax: 460, per: 2, hitR: 32, rangeX: 125, rangeY: 120 },
+};
+const C = BCFG[DIFF] || BCFG.easy;
 
 let fx = 0, fy = 0;        // felix top-left
 let balls = [];            // active fireballs
@@ -93,7 +101,7 @@ function spawnFireball() {
   const tx = Math.random() * w * 0.72;
   const ty = h * 0.12 + Math.random() * h * 0.74;
   const ang = Math.atan2(ty - oy, tx - ox);
-  const speed = 190 + Math.random() * 120;
+  const speed = C.smin + Math.random() * (C.smax - C.smin);
   const el = document.createElement("div");
   el.className = "fireball";
   el.textContent = "🔥";
@@ -115,7 +123,7 @@ function updateFireballs(dt) {
     }
     // collision
     if (invuln <= 0 && !defeated) {
-      if (Math.hypot(b.x - fcx, b.y - fcy) < HIT_R) { resetLevel(false); return; }
+      if (Math.hypot(b.x - fcx, b.y - fcy) < C.hitR) { resetLevel(false); return; }
     }
   }
 }
@@ -124,7 +132,7 @@ function updateFireballs(dt) {
 function checkRange() {
   const d = rel(dragonEl);
   const fcx = fx + FELIX / 2, fcy = fy + FELIX / 2;
-  const near = Math.abs(d.cx - fcx) < 165 && Math.abs(d.cy - fcy) < 150;
+  const near = Math.abs(d.cx - fcx) < C.rangeX && Math.abs(d.cy - fcy) < C.rangeY;
   if (near !== inRange) {
     inRange = near;
     flameBtn.disabled = !near;
@@ -206,7 +214,10 @@ function loop(t) {
     }
     if (invuln > 0) invuln -= dt;
     spawnT -= dt;
-    if (spawnT <= 0 && invuln <= 0) { spawnFireball(); spawnT = SPAWN; }
+    if (spawnT <= 0 && invuln <= 0) {
+      for (let k = 0; k < C.per; k++) spawnFireball();
+      spawnT = C.spawn;
+    }
     updateFireballs(dt);
     checkRange();
   }
@@ -255,5 +266,7 @@ document.getElementById("btn-again").addEventListener("click", () => {
 window.addEventListener("resize", () => { if (playing && !defeated) { const {w,h}=sz(); fx=Math.min(fx,w-FELIX-2); fy=Math.min(fy,h-FELIX-2); placeFelix(); } });
 
 // ════════════════ boot ════════════════
+const bbadge = document.getElementById("bbadge");
+if (bbadge) bbadge.textContent = DIFF_LABEL[DIFF] || "";
 newGame();
 requestAnimationFrame(loop);
