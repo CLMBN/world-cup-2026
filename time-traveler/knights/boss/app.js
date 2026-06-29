@@ -39,18 +39,21 @@ const SPEED = 320;         // felix move speed (px/s)
 const DIFF = (() => { try { return localStorage.getItem("ttDiff") || "easy"; } catch { return "easy"; } })();
 const DIFF_LABEL = { easy: "🐥 Easy", medium: "🪨 Medium", hard: "🔥 Hard" };
 const BCFG = {
-  easy:   { spawn: 1.10, smin: 190, smax: 310, per: 1, hitR: 28, rangeX: 165, rangeY: 150 },
-  medium: { spawn: 0.78, smin: 240, smax: 380, per: 1, hitR: 30, rangeX: 145, rangeY: 135 },
-  hard:   { spawn: 0.55, smin: 300, smax: 460, per: 2, hitR: 32, rangeX: 125, rangeY: 120 },
+  // reach = how far the flame travels; tol = how aligned you must be (vertical)
+  easy:   { spawn: 1.10, smin: 190, smax: 310, per: 1, hitR: 28, reach: 230, tol: 95 },
+  medium: { spawn: 0.78, smin: 240, smax: 380, per: 1, hitR: 30, reach: 205, tol: 78 },
+  hard:   { spawn: 0.55, smin: 300, smax: 460, per: 2, hitR: 32, reach: 180, tol: 62 },
 };
 const C = BCFG[DIFF] || BCFG.easy;
+const FLAME_CD = 1000;     // ms before the flame can be fired again
 
 let fx = 0, fy = 0;        // felix top-left
 let balls = [];            // active fireballs
 let dirs = { up:false, down:false, left:false, right:false };
 let playing = false;       // dodging phase active?
 let defeated = false;      // dragon beaten / cutscene running
-let inRange = false;       // felix next to dragon?
+let flameCd = false;       // flame on cooldown?
+let cdTimer = null;
 let invuln = 0;            // seconds of no-collision after a hit
 let spawnT = 0;
 let lastT = 0;
@@ -78,17 +81,20 @@ function resetLevel(firstTime) {
   placeFelix();
   balls.forEach(b => b.el.remove());
   balls = [];
-  inRange = false;
-  flameBtn.classList.add("off");
+  flameBtn.classList.remove("off");      // flame is free-fire, always ready
+  flameEl.classList.remove("on");
+  flameCd = false; clearTimeout(cdTimer);
   invuln = firstTime ? 1.0 : 1.4;
   spawnT = 0.8;
   if (!firstTime) {
     hitflash.classList.remove("show"); void hitflash.offsetWidth; hitflash.classList.add("show");
     felixEl.classList.remove("hit"); void felixEl.offsetWidth; felixEl.classList.add("hit");
     hint.textContent = "Ouch! 🔥 Start again!";
-    setTimeout(() => { if (playing && !defeated) hint.textContent = "Move with the arrows. Avoid the 🔥!"; }, 1100);
+    setTimeout(() => { if (playing && !defeated) hint.textContent = HINT; }, 1100);
   }
 }
+
+const HINT = "Dodge the 🔥 — aim & tap FLAME at the dragon!";
 
 function newGame() {
   defeated = false;
@@ -98,8 +104,8 @@ function newGame() {
   flameEl.classList.remove("on");
   dragonEl.classList.remove("beaten", "attack");
   dsprite.textContent = "🐉";
-  hint.textContent = "Move with the arrows. Avoid the 🔥!";
-  sub.textContent = "Dodge the fireballs & reach the dragon!";
+  hint.textContent = HINT;
+  sub.textContent = "Dodge the fireballs & flame the dragon!";
   resetLevel(true);
 }
 
@@ -138,35 +144,51 @@ function updateFireballs(dt) {
   }
 }
 
-// ---------- proximity → enable flame ----------
-function checkRange() {
+// ---------- flame (free-fire; only a hit transforms the dragon) ----------
+function fireFlame() {
+  if (!playing || defeated || flameCd) return;
+
   const d = rel(dragonEl);
-  const fcx = fx + FELIX / 2, fcy = fy + FELIX / 2;
-  const near = Math.abs(d.cx - fcx) < C.rangeX && Math.abs(d.cy - fcy) < C.rangeY;
-  if (near !== inRange) {
-    inRange = near;
-    flameBtn.classList.toggle("off", !near);
-    if (near) hint.textContent = "You're next to the dragon — press 🔥 FLAME!";
-    else if (playing && invuln <= 0) hint.textContent = "Move with the arrows. Avoid the 🔥!";
-  }
+  const fcx = fx + FELIX * 0.62, fcy = fy + FELIX / 2;
+  const dist = d.cx - fcx;
+  const hit = dist > 0 && dist <= C.reach && Math.abs(d.cy - fcy) <= C.tol;
+
+  // show the beam (reaching the dragon on a hit, fixed length on a miss)
+  flameEl.style.left = fcx + "px";
+  flameEl.style.top = (fcy - 23) + "px";
+  flameEl.style.width = (hit ? Math.max(20, dist) : C.reach) + "px";
+  flameEl.classList.remove("on"); void flameEl.offsetWidth; flameEl.classList.add("on");
+
+  if (hit) { defeatDragon(); return; }
+
+  // miss: the flame just puffs out, then a 1s cooldown
+  hint.textContent = "Missed! Get closer & line up 🔥";
+  startCooldown();
+  clearTimeout(fireFlame._t);
+  fireFlame._t = setTimeout(() => { if (!defeated) flameEl.classList.remove("on"); }, 380);
 }
 
-// ---------- the win sequence ----------
-function flameDragon() {
-  if (!inRange || defeated || !playing) return;
+function startCooldown() {
+  flameCd = true;
+  flameBtn.classList.add("off");
+  clearTimeout(cdTimer);
+  cdTimer = setTimeout(() => {
+    flameCd = false;
+    if (playing && !defeated) {
+      flameBtn.classList.remove("off");
+      hint.textContent = HINT;
+    }
+  }, FLAME_CD);
+}
+
+// ---------- the win sequence (a flame actually reached the dragon) ----------
+function defeatDragon() {
   defeated = true;
   playing = false;
   flameBtn.classList.add("off");
+  flameCd = false; clearTimeout(cdTimer);
   for (const k in dirs) dirs[k] = false;
   balls.forEach(b => b.el.remove()); balls = [];
-
-  // draw the flamethrower beam from Felix to the dragon
-  const d = rel(dragonEl);
-  const fcx = fx + FELIX * 0.62, fcy = fy + FELIX / 2;
-  flameEl.style.left = fcx + "px";
-  flameEl.style.top = (fcy - 23) + "px";
-  flameEl.style.width = Math.max(20, d.cx - fcx) + "px";
-  flameEl.classList.add("on");
   hint.textContent = "🔥🔥🔥";
 
   // dragon becomes a spicy chicken leg
@@ -229,7 +251,6 @@ function loop(t) {
       spawnT = C.spawn;
     }
     updateFireballs(dt);
-    checkRange();
   }
   requestAnimationFrame(loop);
 }
@@ -243,7 +264,7 @@ const KEYMAP = {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === " " || e.key === "f" || e.key === "F") {
-    e.preventDefault(); if (!flameBtn.classList.contains("off")) flameDragon(); return;
+    e.preventDefault(); fireFlame(); return;
   }
   const dir = KEYMAP[e.key] || KEYMAP[(e.key || "").toLowerCase()];
   if (!dir) return;
@@ -267,7 +288,7 @@ document.querySelectorAll(".pad").forEach((btn) => {
   btn.addEventListener("pointercancel", release);
 });
 
-flameBtn.addEventListener("click", flameDragon);
+flameBtn.addEventListener("click", fireFlame);
 document.getElementById("btn-again").addEventListener("click", () => {
   dragonEl.style.visibility = "visible";
   felixEl.classList.remove("eat");
