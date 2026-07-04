@@ -30,7 +30,7 @@ const T = {
     todayLabel:      (d) => `⚽ Games — ${d}`,
     tomorrowLabel:   (d) => `⚽ Tomorrow — ${d}`,
     allStandings:    '📊 All Group Standings',
-    colSchedule:     '📅 Group Stage Schedule',
+    colSchedule:     '📅 Match History',
     colStandings:    '📊 Group K Standings',
     howToWatch:      '📺 How to Watch Colombia — Free & Paid',
     keyPlayers:      '⚽ Key Players',
@@ -64,12 +64,18 @@ const T = {
     sec:             'Sec',
     liveNow:         (n) => `🔴 LIVE NOW — Matchday ${n}`,
     nextMatch:       (n) => `⏭ Next Match — Matchday ${n}`,
-    koNext:          '⏭ Next Match · Round of 32',
-    koLive:          '🔴 LIVE NOW · Round of 32',
+    koNext:          (round) => `⏭ Next Match · ${round}`,
+    koLive:          (round) => `🔴 LIVE NOW · ${round}`,
     groupComplete:   'Group Stage Complete',
+    stageComplete:   (round) => `${round} Complete`,
     colAdvance:      'Colombia advance to the knockout rounds!',
     mexAdvance:      'Mexico advance to the knockout rounds!',
     checkFIFA:       'Check FIFA.com for Round of 32 schedule.',
+    roundAdvance:    (team, round) => `${team} advance to the ${round}!`,
+    knockoutTBD:     'Opponent to be determined',
+    eliminatedTitle: (team) => `${team} Have Been Eliminated`,
+    eliminatedSub:   'It was a tough game — unfortunately the run ends here.',
+    championTitle:   (team) => `${team} Are World Cup Champions! 🏆`,
     matchdayGroup:   (n) => `Matchday ${n} · Group K`,
     groupStage:      'Group Stage',
     stTeam:          'Team',  stGP:'GP', stW:'W', stD:'D', stL:'L',
@@ -105,7 +111,7 @@ const T = {
     todayLabel:      (d) => `⚽ Partidos de hoy — ${d}`,
     tomorrowLabel:   (d) => `⚽ Mañana — ${d}`,
     allStandings:    '📊 Tabla de posiciones',
-    colSchedule:     '📅 Calendario — Fase de grupos',
+    colSchedule:     '📅 Historial de Partidos',
     colStandings:    '📊 Tabla del Grupo K',
     howToWatch:      '📺 Cómo ver a Colombia — Gratis y de pago',
     keyPlayers:      '⚽ Jugadores clave',
@@ -139,12 +145,18 @@ const T = {
     sec:             'Seg',
     liveNow:         (n) => `🔴 EN VIVO — Jornada ${n}`,
     nextMatch:       (n) => `⏭ Próximo Partido — Jornada ${n}`,
-    koNext:          '⏭ Próximo Partido · Ronda de 32',
-    koLive:          '🔴 EN VIVO · Ronda de 32',
+    koNext:          (round) => `⏭ Próximo Partido · ${round}`,
+    koLive:          (round) => `🔴 EN VIVO · ${round}`,
     groupComplete:   'Fase de grupos completada',
+    stageComplete:   (round) => `${round} Completada`,
     colAdvance:      '¡Colombia avanza a la ronda eliminatoria!',
     mexAdvance:      '¡México avanza a la ronda eliminatoria!',
     checkFIFA:       'Consulta FIFA.com para el calendario de eliminatorias.',
+    roundAdvance:    (team, round) => `¡${team} avanza a ${round}!`,
+    knockoutTBD:     'Rival por definir',
+    eliminatedTitle: (team) => `${team} Ha Sido Eliminado`,
+    eliminatedSub:   'Fue un partido difícil — lastimosamente el camino termina aquí.',
+    championTitle:   (team) => `¡${team} Es Campeón del Mundo! 🏆`,
     matchdayGroup:   (n) => `Jornada ${n} · Grupo K`,
     groupStage:      'Fase de grupos',
     stTeam:          'Equipo', stGP:'PJ', stW:'G', stD:'E', stL:'P',
@@ -259,29 +271,6 @@ const MATCHES = [
   }
 ];
 
-// Colombia's knockout fixture (Round of 32). Same shape as a group match so the
-// hero card, countdown and live score reuse the existing group-stage layout.
-const COL_KNOCKOUT = {
-  id: 'col-gha', matchday: 'R32', round: 'r32',
-  kickoffUTC: '2026-07-04T01:30:00Z',          // Fri Jul 3 · 9:30 PM ET
-  home: { name: 'Colombia', flag: '🇨🇴', espn: 'colombia' },
-  away: { name: 'Ghana',    flag: '🇬🇭', espn: 'ghana' },
-  venue: 'Arrowhead Stadium', city: 'Kansas City, MO', tv: 'FOX',
-  streams: [
-    { name: 'FOX (Free OTA!)', type: 'free',  url: 'https://www.fox.com/live',           note: 'Free broadcast TV' },
-    { name: 'Telemundo',       type: 'free',  url: 'https://www.telemundo.com/deportes', note: 'Free OTA antenna, Spanish' },
-    { name: 'Peacock',         type: 'cable', url: 'https://www.peacocktv.com',          note: 'Telemundo stream online' },
-    { name: 'Tubi',            type: 'free',  url: 'https://tubitv.com',                 note: 'Selected WC games free' },
-  ],
-};
-
-// the team's active knockout fixture, if any
-function knockoutMatchFor(team) {
-  if (team === 'colombia') return COL_KNOCKOUT;
-  if (team === 'mexico')   return MEX_KNOCKOUT;
-  return null;
-}
-
 const PLAYERS = [
   { pos:'GK',  name:'Camilo Vargas',       club:'Atlas FC' },
   { pos:'DEF', name:'Davinson Sánchez',    club:'Galatasaray' },
@@ -354,21 +343,6 @@ const MEXICO_MATCHES = [
     ]
   },
 ];
-
-// Mexico's knockout fixture (Round of 32). Group A winners vs Ecuador.
-const MEX_KNOCKOUT = {
-  id: 'mex-ecu', matchday: 'R32', round: 'r32',
-  kickoffUTC: '2026-07-01T01:00:00Z',          // Tue Jun 30 · 9:00 PM ET
-  home: { name: 'Mexico',  flag: '🇲🇽', espn: 'mexico' },
-  away: { name: 'Ecuador', flag: '🇪🇨', espn: 'ecuador' },
-  venue: 'Estadio Banorte', city: 'Mexico City, MX', tv: 'FOX',
-  streams: [
-    { name: 'FOX (Free OTA!)', type: 'free',  url: 'https://www.fox.com/live',           note: 'Free broadcast TV' },
-    { name: 'Telemundo',       type: 'free',  url: 'https://www.telemundo.com/deportes', note: 'Free OTA antenna, Spanish' },
-    { name: 'Peacock',         type: 'cable', url: 'https://www.peacocktv.com',          note: 'Telemundo stream online' },
-    { name: 'Tubi',            type: 'free',  url: 'https://tubitv.com',                 note: 'Selected WC games free' },
-  ],
-};
 
 const MEXICO_PLAYERS = [
   { pos:'GK',  name:'Guillermo Ochoa',    club:'Club América' },
@@ -512,6 +486,9 @@ function attachEvent(m) {
   m.kickoffUTC = ev.kickoffUTC;
   m.state      = ev.state;
   m.clock      = ev.clock;
+  m.venue      = ev.venue;
+  m.city       = ev.city;
+  m.tv         = ev.tv;
   m.home.score = ev.scores[normTeam(m.home.name)];
   m.away.score = ev.scores[normTeam(m.away.name)];
   if (m.state === 'post') {
@@ -592,6 +569,55 @@ function buildKnockout() {
     resolved[tie.m] = match;
     return match;
   });
+}
+
+// ── TEAM KNOCKOUT RUN (Colombia / Mexico tab) ──────────────────────────────────
+// Reuses the same live bracket resolution as the Tournament > Bracket tab, so the
+// team tab automatically tracks a country through every round it survives —
+// no manual fixture entry needed once a team's slot is known and results post.
+
+function teamDisplayName(team) { return team === 'mexico' ? 'Mexico' : 'Colombia'; }
+
+const DEFAULT_KO_STREAMS = [
+  { name: 'FOX (Free OTA!)', type: 'free',  url: 'https://www.fox.com/live',           note: 'Free broadcast TV' },
+  { name: 'Telemundo',       type: 'free',  url: 'https://www.telemundo.com/deportes', note: 'Free OTA antenna, Spanish' },
+  { name: 'Peacock',         type: 'cable', url: 'https://www.peacocktv.com',          note: 'Telemundo stream online' },
+  { name: 'Tubi',            type: 'free',  url: 'https://tubitv.com',                 note: 'Selected WC games free' },
+];
+
+// adapt a resolved KO_TREE match into the same shape group-stage matches use,
+// so the hero card, countdown, live score and match-history grid all work unmodified
+function toDisplayMatch(bm) {
+  const wrapSide = side => ({
+    name:  side.name || T[LANG].tbd,
+    flag:  side.name ? flagFor(side.name) : '◦',
+    espn:  side.name ? side.name.toLowerCase() : '',
+    score: side.score,
+  });
+  return {
+    id: `ko-m${bm.m}`,
+    round: bm.round,
+    kickoffUTC: bm.kickoffUTC || null,
+    state: bm.state || null,
+    home: wrapSide(bm.home),
+    away: wrapSide(bm.away),
+    venue: bm.venue || '',
+    city:  bm.city  || '',
+    tv:    bm.tv    || 'FOX',
+    streams: DEFAULT_KO_STREAMS,
+    winnerName: bm.winnerName || null,
+    loserName:  bm.loserName  || null,
+  };
+}
+
+// the team's knockout matches, in display shape, ordered Round of 32 → Final —
+// only the rounds that team's real slot has actually reached appear here
+function knockoutRunFor(team) {
+  const teamName = teamDisplayName(team);
+  return buildKnockout()
+    .filter(bm => bm.home.name === teamName || bm.away.name === teamName)
+    .sort((a, b) => ROUND_ORDER.indexOf(a.round) - ROUND_ORDER.indexOf(b.round))
+    .map(toDisplayMatch);
 }
 
 function detectRound(notes) {
@@ -940,6 +966,9 @@ function parseScoreboard(data) {
       kickoffUTC: ev.date,
       state:      ev.status?.type?.state || 'pre',
       clock:      ev.status?.displayClock || '',
+      venue:      comp.venue?.fullName || '',
+      city:       comp.venue?.address?.city || '',
+      tv:         (comp.broadcasts || []).flatMap(b => b.names || []).filter(Boolean).join(' · '),
       scores:     { [hn]: home.score, [an]: away.score },
       winners:    { [hn]: home.winner === true, [an]: away.winner === true },
       teams:      [hn, an],
@@ -1997,7 +2026,7 @@ function heroMatchCard(target, upcomingEyebrow, liveEyebrow) {
         <div>
           <div class="hero-eyebrow" style="color:${accent}">${liveEyebrow}</div>
           <div class="hero-title">${target.home.flag} ${target.home.name} &nbsp;vs&nbsp; ${target.away.flag} ${target.away.name}</div>
-          <div class="hero-detail" style="margin-top:.3rem">📍 ${target.venue}, ${target.city}</div>
+          ${target.venue ? `<div class="hero-detail" style="margin-top:.3rem">📍 ${target.venue}${target.city ? ', ' + target.city : ''}</div>` : ''}
           <div class="hero-streams">
             ${freeStreams.map(s => `
               <a href="${s.url}" target="_blank" class="chip free">▶ ${s.name} <span class="free-tag">FREE</span></a>
@@ -2017,7 +2046,7 @@ function heroMatchCard(target, upcomingEyebrow, liveEyebrow) {
           <div class="hero-eyebrow" style="color:${accent}">${upcomingEyebrow}</div>
           <div class="hero-title">${target.home.flag} ${target.home.name} <span style="color:var(--muted);font-weight:400">vs</span> ${target.away.flag} ${target.away.name}</div>
           <div class="hero-detail" style="margin-top:.3rem">🕐 ${fmtET(target.kickoffUTC)}</div>
-          <div class="hero-detail">📍 ${target.venue}, ${target.city} &nbsp;·&nbsp; 📺 ${target.tv}</div>
+          <div class="hero-detail">${target.venue ? `📍 ${target.venue}${target.city ? ', ' + target.city : ''} &nbsp;·&nbsp; ` : ''}📺 ${target.tv}</div>
           <div class="hero-streams">
             ${freeStreams.map(s => `
               <a href="${s.url}" target="_blank" class="chip free">▶ ${s.name} <span class="free-tag">FREE</span></a>
@@ -2037,16 +2066,59 @@ function heroMatchCard(target, upcomingEyebrow, liveEyebrow) {
       </div>`;
 }
 
-// compact "advanced to the knockout rounds" banner
-function heroCongratsHtml(teamName) {
+// compact "advanced to the next round" banner
+function heroCongratsHtml(eyebrow, title) {
   const { accent, border, bg } = heroTheme();
-  const title = ACTIVE_TEAM === 'mexico' ? T[LANG].mexAdvance : T[LANG].colAdvance;
   return `
       <div class="hero hero-congrats" style="border-color:${border};background:${bg}">
         <div class="congrats-emoji">🎉</div>
         <div>
-          <div class="hero-eyebrow" style="color:${accent}">${T[LANG].groupComplete}</div>
+          <div class="hero-eyebrow" style="color:${accent}">${eyebrow}</div>
           <div class="hero-congrats-title">${title}</div>
+        </div>
+      </div>`;
+}
+
+// "eliminated" banner — the team's run ends here
+function heroEliminatedHtml(teamName, lastMatch) {
+  const { bg } = heroTheme();
+  const roundLabel = T[LANG].roundLabels[lastMatch.round] || '';
+  return `
+      <div class="hero hero-congrats" style="border-color:var(--col-red);background:${bg}">
+        <div class="congrats-emoji">💔</div>
+        <div>
+          <div class="hero-eyebrow" style="color:var(--col-red)">${T[LANG].stageComplete(roundLabel)}</div>
+          <div class="hero-congrats-title">${T[LANG].eliminatedTitle(teamName)}</div>
+          <div class="hero-detail">${T[LANG].eliminatedSub}</div>
+        </div>
+      </div>`;
+}
+
+// "champions" banner — nothing left to play and the team won it all
+function heroChampionHtml(teamName) {
+  const { border, bg } = heroTheme();
+  return `
+      <div class="hero hero-congrats" style="border-color:${border};background:${bg}">
+        <div class="congrats-emoji">🏆</div>
+        <div>
+          <div class="hero-eyebrow" style="color:var(--col-yellow)">${T[LANG].stageComplete(T[LANG].roundLabels.final)}</div>
+          <div class="hero-congrats-title">${T[LANG].championTitle(teamName)}</div>
+        </div>
+      </div>`;
+}
+
+// compact recap of the most recently completed knockout match
+function heroResultCardHtml(m) {
+  const { border, bg } = heroTheme();
+  const roundLabel = T[LANG].roundLabels[m.round] || '';
+  const homeWon = normTeam(m.winnerName) === normTeam(m.home.name);
+  return `
+      <div class="hero hero-result" style="border-color:${border};background:${bg}">
+        <div class="hero-eyebrow">${roundLabel} · ${T[LANG].ft}</div>
+        <div class="hero-title" style="font-size:1.1rem;margin-bottom:0">
+          <span class="${homeWon ? 'result-winner' : ''}">${m.home.flag} ${m.home.name} ${m.home.score ?? '–'}</span>
+          <span style="color:var(--muted);font-weight:400">–</span>
+          <span class="${!homeWon ? 'result-winner' : ''}">${m.away.score ?? '–'} ${m.away.name} ${m.away.flag}</span>
         </div>
       </div>`;
 }
@@ -2057,15 +2129,15 @@ function heroTargetMatch() {
   const groupTarget = matches.find(m => matchState(m.kickoffUTC) === 'live')
                    || matches.find(m => matchState(m.kickoffUTC) === 'upcoming');
   if (groupTarget) return groupTarget;
-  const ko = knockoutMatchFor(ACTIVE_TEAM);
-  return (ko && matchState(ko.kickoffUTC) !== 'final') ? ko : null;
+  const run = knockoutRunFor(ACTIVE_TEAM);
+  return run.find(m => !m.winnerName && m.kickoffUTC) || null;
 }
 
 function renderHero() {
   const el = document.getElementById('hero');
   if (!el) return;
   const matches  = ACTIVE_TEAM === 'mexico' ? MEXICO_MATCHES : MATCHES;
-  const teamName = ACTIVE_TEAM === 'mexico' ? 'Mexico' : 'Colombia';
+  const teamName = teamDisplayName(ACTIVE_TEAM);
 
   const groupTarget = matches.find(m => matchState(m.kickoffUTC) === 'live')
                    || matches.find(m => matchState(m.kickoffUTC) === 'upcoming');
@@ -2076,47 +2148,97 @@ function renderHero() {
     return;
   }
 
-  // group stage complete — compact congrats banner + the knockout match card
-  const ko = knockoutMatchFor(ACTIVE_TEAM);
-  let html = `<div class="hero-stack">${heroCongratsHtml(teamName)}`;
-  if (ko && matchState(ko.kickoffUTC) !== 'final') {
-    html += heroMatchCard(ko, T[LANG].koNext, T[LANG].koLive);
-  } else if (!ko) {
-    html += `<div class="hero-detail" style="text-align:center">${T[LANG].checkFIFA}</div>`;
+  // group stage complete — walk the team's knockout run: history, current
+  // fixture and advance/eliminate language all derive from the live bracket
+  const run = knockoutRunFor(ACTIVE_TEAM);
+  if (run.length === 0) {
+    // bracket not resolved yet (offline, or standings still loading)
+    const advanceMsg = ACTIVE_TEAM === 'mexico' ? T[LANG].mexAdvance : T[LANG].colAdvance;
+    el.innerHTML = `<div class="hero-stack">${heroCongratsHtml(T[LANG].groupComplete, advanceMsg)}
+      <div class="hero-detail" style="text-align:center">${T[LANG].checkFIFA}</div></div>`;
+    return;
   }
-  el.innerHTML = html + `</div>`;
+
+  const decided = run.filter(m => m.winnerName);
+  const last    = decided[decided.length - 1];
+  const current = run.find(m => !m.winnerName);
+
+  let html = '<div class="hero-stack">';
+
+  if (last && normTeam(last.winnerName) !== normTeam(teamName)) {
+    html += heroEliminatedHtml(teamName, last);
+    html += heroResultCardHtml(last);
+  } else if (current) {
+    const roundLabel  = T[LANG].roundLabels[current.round] || '';
+    const eyebrow     = last ? T[LANG].stageComplete(T[LANG].roundLabels[last.round]) : T[LANG].groupComplete;
+    html += heroCongratsHtml(eyebrow, T[LANG].roundAdvance(teamName, roundLabel));
+    if (current.kickoffUTC) {
+      html += heroMatchCard(current, T[LANG].koNext(roundLabel), T[LANG].koLive(roundLabel));
+    } else {
+      html += `<div class="hero-detail" style="text-align:center">${T[LANG].knockoutTBD} — ${T[LANG].checkFIFA}</div>`;
+    }
+    if (last) html += heroResultCardHtml(last);
+  } else if (last && last.round === 'final') {
+    html += heroChampionHtml(teamName);
+    html += heroResultCardHtml(last);
+  } else if (last) {
+    html += heroCongratsHtml(T[LANG].stageComplete(T[LANG].roundLabels[last.round]), T[LANG].checkFIFA);
+    html += heroResultCardHtml(last);
+  }
+
+  el.innerHTML = html + '</div>';
+}
+
+// group-stage matches + every knockout match the team's real slot has reached
+// (chronological — the definitive record of the team's whole tournament)
+function historyMatchesFor(team) {
+  const groupMatches = (team === 'mexico' ? MEXICO_MATCHES : MATCHES).map(m => ({ ...m, round: 'group' }));
+  const koMatches = knockoutRunFor(team).filter(m => m.kickoffUTC);
+  return [...groupMatches, ...koMatches].sort((a, b) => new Date(a.kickoffUTC) - new Date(b.kickoffUTC));
 }
 
 function renderMatches() {
-  const matches = ACTIVE_TEAM === 'mexico' ? MEXICO_MATCHES : MATCHES;
-  const teamName = ACTIVE_TEAM === 'mexico' ? 'Mexico' : 'Colombia';
+  const teamName = teamDisplayName(ACTIVE_TEAM);
   const hlClass  = ACTIVE_TEAM === 'mexico' ? 'mex' : 'col';
-  const matchdayLabel = ACTIVE_TEAM === 'mexico'
+  const groupMatchdayLabel = ACTIVE_TEAM === 'mexico'
     ? (n => LANG === 'es' ? `Jornada ${n} · Grupo A` : `Matchday ${n} · Group A`)
     : T[LANG].matchdayGroup;
+  const matches = historyMatchesFor(ACTIVE_TEAM);
+
   document.getElementById('matches').innerHTML = matches.map(m => {
-    const state = matchState(m.kickoffUTC);
+    // prefer the real ESPN status (set on knockout matches via attachEvent) over
+    // the kickoff-time heuristic, since knockout games can run past its 2hr window
+    const state = m.winnerName ? 'final' : m.state === 'in' ? 'live' : matchState(m.kickoffUTC);
     const sc    = liveScoreFor(m);
     const homeCol = m.home.name === teamName;
     const awayCol = m.away.name === teamName;
+    const label = m.round && m.round !== 'group'
+      ? (T[LANG].roundLabels[m.round] || '')
+      : groupMatchdayLabel(m.matchday);
 
     let badge = '';
     let hs = '–', as_ = '–';
 
     if (state === 'live') {
       badge = `<span class="status-chip live">🔴 ${sc?.clock || T[LANG].live}</span>`;
-      hs = sc?.homeScore ?? '0'; as_ = sc?.awayScore ?? '0';
+      hs = sc?.homeScore ?? m.home.score ?? '0'; as_ = sc?.awayScore ?? m.away.score ?? '0';
     } else if (state === 'final') {
       badge = `<span class="status-chip final">${T[LANG].ft}</span>`;
-      hs = sc?.homeScore ?? '–'; as_ = sc?.awayScore ?? '–';
+      hs = sc?.homeScore ?? m.home.score ?? '–'; as_ = sc?.awayScore ?? m.away.score ?? '–';
     } else {
       badge = `<span class="status-chip sched">${fmtDateShort(m.kickoffUTC)}</span>`;
     }
 
+    const metaTags = [
+      `🕐 ${fmtET(m.kickoffUTC)}`,
+      m.venue ? `📍 ${m.venue}${m.city ? ', ' + m.city : ''}` : '',
+      m.tv    ? `📺 ${m.tv}` : '',
+    ].filter(Boolean).map(t => `<span class="meta-tag">${t}</span>`).join('');
+
     return `
       <div class="match-card ${state === 'live' ? 'is-live' : state === 'upcoming' ? 'is-next' : ''}">
         <div class="match-top">
-          <span>${matchdayLabel(m.matchday)}</span>
+          <span>${label}</span>
           ${badge}
         </div>
         <div class="match-body">
@@ -2136,9 +2258,7 @@ function renderMatches() {
             </div>
           </div>
           <div class="match-meta">
-            <span class="meta-tag">🕐 ${fmtET(m.kickoffUTC)}</span>
-            <span class="meta-tag">📍 ${m.venue}</span>
-            <span class="meta-tag">📺 ${m.tv}</span>
+            ${metaTags}
           </div>
           ${state === 'final' ? matchRecapHtml(m.home.name, m.away.name, summaryForGame(m.home.name, m.away.name)) : ''}
         </div>
@@ -2186,8 +2306,9 @@ function renderStandings() {
 function renderStreams() {
   const base = ACTIVE_TEAM === 'mexico' ? MEXICO_MATCHES : MATCHES;
   // include the upcoming knockout fixture so its free-to-watch options show here too
-  const ko = knockoutMatchFor(ACTIVE_TEAM);
-  const matches = (ko && matchState(ko.kickoffUTC) !== 'final') ? [ko, ...base] : base;
+  const run = knockoutRunFor(ACTIVE_TEAM);
+  const current = run.find(m => !m.winnerName && m.kickoffUTC);
+  const matches = current ? [current, ...base] : base;
   document.getElementById('streams').innerHTML = matches.map((m, i) => {
     const state   = matchState(m.kickoffUTC);
     const sc      = liveScoreFor(m);
