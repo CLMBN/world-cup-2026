@@ -2194,7 +2194,9 @@ function renderHero() {
 function historyMatchesFor(team) {
   const groupMatches = (team === 'mexico' ? MEXICO_MATCHES : MATCHES).map(m => ({ ...m, round: 'group' }));
   const koMatches = knockoutRunFor(team).filter(m => m.kickoffUTC);
-  return [...groupMatches, ...koMatches].sort((a, b) => new Date(a.kickoffUTC) - new Date(b.kickoffUTC));
+  // most recent/next game first, oldest last — the next fixture (furthest in
+  // the future) naturally sorts to the top alongside the latest result
+  return [...groupMatches, ...koMatches].sort((a, b) => new Date(b.kickoffUTC) - new Date(a.kickoffUTC));
 }
 
 function renderMatches() {
