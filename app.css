@@ -345,27 +345,38 @@ main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex
 /* ── BRACKET ──────────────────────────────────────── */
 .bracket-scroll-wrap {
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
   padding-bottom: .75rem;
   margin: -.25rem;
+  transition: height .25s ease;
 }
 .bracket-rounds {
   display: flex;
-  gap: .75rem;
+  gap: 1.5rem;
   align-items: flex-start;
   min-width: max-content;
   padding: .25rem;
+  position: relative;
+  transition: transform .25s ease;
 }
-.bracket-round { display: flex; flex-direction: column; gap: .4rem; width: 176px; }
+.bracket-round {
+  display: flex; flex-direction: column; gap: .4rem; width: 176px;
+  position: relative; z-index: 1; scroll-snap-align: start;
+}
 .bracket-round-label {
   font-size: .6rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
   color: var(--col-yellow); text-align: center; padding: .4rem 0 .5rem;
   border-bottom: 1px solid var(--border);
 }
-/* rounds are no longer stretched to the Round of 32's height — each round
-   packs its own matches tightly so later rounds don't need a long scroll
-   just to reach a couple of cards. */
+/* rounds are no longer stretched to the Round of 32's height. Round of 32
+   itself stays in normal flow; every later round is positioned by JS
+   (layoutBracketTree) so each match sits at the exact vertical midpoint of
+   the two matches feeding it. */
 .bracket-matches { display: flex; flex-direction: column; gap: .45rem; }
+.bracket-lines { position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none; overflow: visible; }
+.bracket-line-path { fill: none; stroke: var(--border); stroke-width: 1.5; }
 
 /* round navigation tabs */
 .bracket-tabs {
@@ -422,9 +433,6 @@ main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex
   border-radius: 10px; min-width: 300px;
 }
 .bracket-empty .empty-title { font-size: 1.05rem; font-weight: 600; color: var(--text); margin-bottom: .5rem; }
-.bracket-round-sep {
-  width: 1px; background: var(--border); margin-top: 2rem; flex-shrink: 0;
-}
 
 /* ── PROJECTED BRACKET ────────────────────────────── */
 .bracket-proj { display: flex; flex-direction: column; gap: .6rem; width: 188px; }

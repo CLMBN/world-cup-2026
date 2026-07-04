@@ -1488,7 +1488,7 @@ function bracketMatchHtml(m) {
 
   const sub = m.round === '3rd' ? `<span class="b-sub">${T[LANG].roundLabels['3rd']}</span>` : '';
 
-  return `<div class="b-match${isLive ? ' is-live' : isDone ? ' is-done' : ''}">
+  return `<div class="b-match${isLive ? ' is-live' : isDone ? ' is-done' : ''}" data-m="${m.m}">
     <div class="b-mhead">${sub}<span class="b-mno">M${m.m}</span></div>
     ${bracketSlotHtml(m.home, m, showScore, isDone)}
     ${bracketSlotHtml(m.away, m, showScore, isDone)}
@@ -1505,6 +1505,113 @@ const BRACKET_COLS = [
   { id: 'final', rounds: ['final', '3rd'] },
 ];
 
+// match number -> the match number(s) that feed into it, read straight from
+// the tree definition (not the resolved runtime data) so lines can be drawn
+// before — or after — a feeding match is actually decided.
+function bracketFeeders(matchNum) {
+  const tie = KO_TREE.find(t => t.m === matchNum);
+  if (!tie || tie.round === 'r32') return [];
+  return [tie.home, tie.away].map(ref => ref.w ?? ref.l).filter(n => n != null);
+}
+
+const BRACKET_CARD_GAP = 7; // px — matches .bracket-matches's .45rem gap
+
+// Positions every match beyond Round of 32 at the exact vertical midpoint of
+// the two matches feeding it, using real measured card heights (a card
+// without a kickoff time yet has no status row, so heights aren't uniform).
+// Round of 32 stays in normal flow; every column's measurements are taken in
+// a single shared coordinate space (relative to roundsEl) so later rounds
+// can be positioned with plain absolute offsets. Returns { [colId]: {top,
+// bottom} } spans in that same shared space, for the scroll-focus crop.
+function layoutBracketTree(roundsEl, cols) {
+  const spans = {};
+  const rootRect = roundsEl.getBoundingClientRect();
+  const relTop = node => node.getBoundingClientRect().top - rootRect.top;
+
+  let centers = null;
+  cols.forEach((c, idx) => {
+    const roundEl = document.getElementById('brk-col-' + c.id);
+    const matchesEl = roundEl.querySelector('.bracket-matches');
+    matchesEl.style.position = 'relative';
+    const cards = [...matchesEl.children];
+    const heights = cards.map(card => card.getBoundingClientRect().height);
+
+    let tops; // relative to roundsEl
+    if (idx === 0) {
+      tops = cards.map(card => relTop(card));
+    } else if (cards.length * 2 === centers.length) {
+      tops = cards.map((_, i) => (centers[2 * i] + centers[2 * i + 1]) / 2 - heights[i] / 2);
+    } else {
+      // e.g. Final + 3rd place both come from the same semifinal pair —
+      // stack them as one small block centered on that pair's midpoint
+      const mid = centers.reduce((a, b) => a + b, 0) / centers.length;
+      const blockH = heights.reduce((a, b) => a + b, 0) + BRACKET_CARD_GAP * (heights.length - 1);
+      let y = mid - blockH / 2;
+      tops = heights.map(h => { const t = y; y += h + BRACKET_CARD_GAP; return t; });
+    }
+
+    if (idx > 0) {
+      const matchesTop = relTop(matchesEl);
+      let maxBottom = 0;
+      cards.forEach((card, i) => {
+        const localTop = tops[i] - matchesTop;
+        card.style.position = 'absolute';
+        card.style.left = '0';
+        card.style.right = '0';
+        card.style.top = localTop + 'px';
+        maxBottom = Math.max(maxBottom, localTop + heights[i]);
+      });
+      matchesEl.style.height = Math.max(maxBottom, 0) + 'px';
+    }
+
+    centers = tops.map((t, i) => t + heights[i] / 2);
+    spans[c.id] = { top: Math.min(...tops), bottom: Math.max(...tops.map((t, i) => t + heights[i])) };
+  });
+
+  const anyLabel = roundsEl.querySelector('.bracket-round-label');
+  return { spans, labelH: anyLabel ? anyLabel.offsetHeight : 0 };
+}
+
+// draws the elbow connector from each feeding match's right edge into the
+// match it feeds, using the positions layoutBracketTree just computed
+function drawBracketConnectors(roundsEl, matches) {
+  const rootRect = roundsEl.getBoundingClientRect();
+  const w = roundsEl.scrollWidth, h = roundsEl.scrollHeight;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'bracket-lines');
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+
+  let d = '';
+  matches.forEach(m => {
+    const feeders = bracketFeeders(m.m);
+    if (!feeders.length) return;
+    const targetEl = roundsEl.querySelector(`[data-m="${m.m}"]`);
+    if (!targetEl) return;
+    const tr = targetEl.getBoundingClientRect();
+    const tY = tr.top - rootRect.top + tr.height / 2;
+    const tX = tr.left - rootRect.left;
+    feeders.forEach(fn => {
+      const feederEl = roundsEl.querySelector(`[data-m="${fn}"]`);
+      if (!feederEl) return;
+      const fr = feederEl.getBoundingClientRect();
+      const fY = fr.top - rootRect.top + fr.height / 2;
+      const fX = fr.right - rootRect.left;
+      const midX = (fX + tX) / 2;
+      d += `M${fX},${fY} H${midX} V${tY} H${tX} `;
+    });
+  });
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('class', 'bracket-line-path');
+  svg.appendChild(path);
+  roundsEl.appendChild(svg);
+}
+
+let BRACKET_SPANS = {}, BRACKET_LABEL_H = 0, BRACKET_SCROLL_BOUND = false;
+
 function renderBracket() {
   const el = document.getElementById('bracket-rounds');
   if (!el) return;
@@ -1516,30 +1623,26 @@ function renderBracket() {
     list: c.rounds.flatMap(r => matches.filter(m => m.round === r)),
   }));
 
-  el.innerHTML = cols.map((c, i) => {
-    const sep = i > 0 ? '<div class="bracket-round-sep"></div>' : '';
-    return `${sep}<div class="bracket-round" id="brk-col-${c.id}">
+  el.innerHTML = cols.map(c => `<div class="bracket-round" id="brk-col-${c.id}">
       <div class="bracket-round-label">${c.label}</div>
       <div class="bracket-matches">${c.list.map(bracketMatchHtml).join('')}</div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
 
-  // each round now hugs its own content instead of stretching to the tallest
-  // column, so size every divider to just its two neighboring rounds instead
-  // of the full row height (otherwise it'd dangle past a short column).
-  el.querySelectorAll('.bracket-round-sep').forEach(sep => {
-    const prev = sep.previousElementSibling, next = sep.nextElementSibling;
-    const h = Math.max(prev?.offsetHeight || 0, next?.offsetHeight || 0);
-    sep.style.height = h + 'px';
-  });
+  const layout = layoutBracketTree(el, cols);
+  BRACKET_SPANS = layout.spans;
+  BRACKET_LABEL_H = layout.labelH;
+  drawBracketConnectors(el, matches);
 
-  renderBracketChrome(el, cols);
+  const activeId = renderBracketChrome(el, cols);
+  applyBracketFocus(activeId);
+  setupBracketScrollSync();
 }
 
-// the round-tab bar + projection note, inserted once above the scroll area
+// the round-tab bar + projection note, inserted once above the scroll area.
+// Returns the currently-active round id.
 function renderBracketChrome(el, cols) {
   const wrap = el.closest('.bracket-scroll-wrap');
-  if (!wrap) return;
+  if (!wrap) return 'r32';
   const host = wrap.parentElement;
 
   let note = host.querySelector('.bracket-note');
@@ -1552,10 +1655,26 @@ function renderBracketChrome(el, cols) {
   tabs.innerHTML = cols.map(c =>
     `<button class="bracket-tab${c.id === active ? ' active' : ''}" data-r="${c.id}" onclick="scrollBracketTo('${c.id}')">${c.label}</button>`
   ).join('');
+  return active;
 }
 
-// scroll the round into view and mark its tab active. Uses rect math so it
-// works regardless of which ancestor establishes the positioning context.
+// crops the scroll-wrap's height and shifts the tree vertically so the given
+// round's own matches fill the view — shrinking for later (sparser) rounds
+// and expanding again when scrolling back toward Round of 32.
+function applyBracketFocus(rid) {
+  const span = BRACKET_SPANS[rid];
+  const wrap = document.querySelector('.bracket-scroll-wrap');
+  const roundsEl = document.getElementById('bracket-rounds');
+  if (!span || !wrap || !roundsEl) return;
+  const pad = 10;
+  const top = Math.max(0, span.top - BRACKET_LABEL_H - pad);
+  wrap.style.height = (span.bottom - top + pad) + 'px';
+  roundsEl.style.transform = `translateY(${-top}px)`;
+  document.querySelectorAll('.bracket-tab').forEach(t => t.classList.toggle('active', t.dataset.r === rid));
+}
+
+// scroll the round into view and focus it. Uses rect math so it works
+// regardless of which ancestor establishes the positioning context.
 function scrollBracketTo(rid) {
   const col = document.getElementById('brk-col-' + rid);
   const wrap = col && col.closest('.bracket-scroll-wrap');
@@ -1563,7 +1682,42 @@ function scrollBracketTo(rid) {
     const delta = col.getBoundingClientRect().left - wrap.getBoundingClientRect().left;
     wrap.scrollTo({ left: Math.max(0, wrap.scrollLeft + delta - 10), behavior: 'smooth' });
   }
-  document.querySelectorAll('.bracket-tab').forEach(t => t.classList.toggle('active', t.dataset.r === rid));
+  applyBracketFocus(rid);
+}
+
+// keeps the tab bar + height-crop in sync when the user swipes/scrolls the
+// bracket directly instead of tapping a round tab
+function setupBracketScrollSync() {
+  if (BRACKET_SCROLL_BOUND) return;
+  const wrap = document.querySelector('.bracket-scroll-wrap');
+  if (!wrap) return;
+  BRACKET_SCROLL_BOUND = true;
+  let ticking = false;
+  wrap.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const cols = [...document.querySelectorAll('.bracket-round')];
+      if (!cols.length) return;
+      // at the scroll-right limit the last column(s) may never reach the
+      // left edge (not enough scrollable width left), so nearest-edge
+      // matching would keep picking its neighbor instead — snap to the
+      // last column explicitly once we've hit the end
+      const atEnd = wrap.scrollLeft >= wrap.scrollWidth - wrap.clientWidth - 2;
+      let closest = cols[cols.length - 1];
+      if (!atEnd) {
+        const wrapLeft = wrap.getBoundingClientRect().left;
+        let closestDist = Infinity;
+        cols.forEach(col => {
+          const dist = Math.abs(col.getBoundingClientRect().left - wrapLeft);
+          if (dist < closestDist) { closestDist = dist; closest = col; }
+        });
+      }
+      const rid = closest.id.replace('brk-col-', '');
+      if (document.querySelector('.bracket-tab.active')?.dataset.r !== rid) applyBracketFocus(rid);
+    });
+  }, { passive: true });
 }
 
 // ── RENDER: TODAY'S GAMES ─────────────────────────────────────────────────────
