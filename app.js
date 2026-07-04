@@ -1524,6 +1524,15 @@ function renderBracket() {
     </div>`;
   }).join('');
 
+  // each round now hugs its own content instead of stretching to the tallest
+  // column, so size every divider to just its two neighboring rounds instead
+  // of the full row height (otherwise it'd dangle past a short column).
+  el.querySelectorAll('.bracket-round-sep').forEach(sep => {
+    const prev = sep.previousElementSibling, next = sep.nextElementSibling;
+    const h = Math.max(prev?.offsetHeight || 0, next?.offsetHeight || 0);
+    sep.style.height = h + 'px';
+  });
+
   renderBracketChrome(el, cols);
 }
 
