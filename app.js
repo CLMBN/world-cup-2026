@@ -1516,14 +1516,17 @@ function bracketFeeders(matchNum) {
 
 const BRACKET_CARD_GAP = 7; // px — matches .bracket-matches's .45rem gap
 
-// Positions every match beyond Round of 32 at the exact vertical midpoint of
+// Positions every round after anchorIdx at the exact vertical midpoint of
 // the two matches feeding it, using real measured card heights (a card
 // without a kickoff time yet has no status row, so heights aren't uniform).
-// Round of 32 stays in normal flow; every column's measurements are taken in
-// a single shared coordinate space (relative to roundsEl) so later rounds
-// can be positioned with plain absolute offsets. Returns { [colId]: {top,
-// bottom} } spans in that same shared space, for the scroll-focus crop.
-function layoutBracketTree(roundsEl, cols) {
+// Rounds at or before anchorIdx are reset to plain compact flow — the
+// "focused" round (and reload) ignores whatever height the rounds before it
+// needed, instead of inheriting the tall spread true alignment requires.
+// Every measurement is taken in a single shared coordinate space (relative
+// to roundsEl) so later rounds can be positioned with plain absolute
+// offsets. Returns { [colId]: {top, bottom} } spans in that same shared
+// space, for the scroll-focus crop.
+function layoutBracketTree(roundsEl, cols, anchorIdx) {
   const spans = {};
   const rootRect = roundsEl.getBoundingClientRect();
   const relTop = node => node.getBoundingClientRect().top - rootRect.top;
@@ -1532,14 +1535,27 @@ function layoutBracketTree(roundsEl, cols) {
   cols.forEach((c, idx) => {
     const roundEl = document.getElementById('brk-col-' + c.id);
     const matchesEl = roundEl.querySelector('.bracket-matches');
-    matchesEl.style.position = 'relative';
     const cards = [...matchesEl.children];
-    const heights = cards.map(card => card.getBoundingClientRect().height);
 
-    let tops; // relative to roundsEl
-    if (idx === 0) {
-      tops = cards.map(card => relTop(card));
-    } else if (cards.length * 2 === centers.length) {
+    if (idx <= anchorIdx) {
+      // compact, independent flow — a fresh start that doesn't care how
+      // tall (or spread out) the round(s) before it ended up being
+      matchesEl.style.position = '';
+      matchesEl.style.height = '';
+      cards.forEach(card => { card.style.position = ''; card.style.top = ''; card.style.left = ''; card.style.right = ''; });
+      const heights = cards.map(card => card.getBoundingClientRect().height);
+      const tops = cards.map(card => relTop(card));
+      centers = tops.map((t, i) => t + heights[i] / 2);
+      spans[c.id] = { top: Math.min(...tops), bottom: Math.max(...tops.map((t, i) => t + heights[i])) };
+      return;
+    }
+
+    // beyond the anchor: cascade from the previous round's centers, same
+    // true-midpoint math as before
+    matchesEl.style.position = 'relative';
+    const heights = cards.map(card => card.getBoundingClientRect().height);
+    let tops;
+    if (cards.length * 2 === centers.length) {
       tops = cards.map((_, i) => (centers[2 * i] + centers[2 * i + 1]) / 2 - heights[i] / 2);
     } else {
       // e.g. Final + 3rd place both come from the same semifinal pair —
@@ -1550,19 +1566,17 @@ function layoutBracketTree(roundsEl, cols) {
       tops = heights.map(h => { const t = y; y += h + BRACKET_CARD_GAP; return t; });
     }
 
-    if (idx > 0) {
-      const matchesTop = relTop(matchesEl);
-      let maxBottom = 0;
-      cards.forEach((card, i) => {
-        const localTop = tops[i] - matchesTop;
-        card.style.position = 'absolute';
-        card.style.left = '0';
-        card.style.right = '0';
-        card.style.top = localTop + 'px';
-        maxBottom = Math.max(maxBottom, localTop + heights[i]);
-      });
-      matchesEl.style.height = Math.max(maxBottom, 0) + 'px';
-    }
+    const matchesTop = relTop(matchesEl);
+    let maxBottom = 0;
+    cards.forEach((card, i) => {
+      const localTop = tops[i] - matchesTop;
+      card.style.position = 'absolute';
+      card.style.left = '0';
+      card.style.right = '0';
+      card.style.top = localTop + 'px';
+      maxBottom = Math.max(maxBottom, localTop + heights[i]);
+    });
+    matchesEl.style.height = Math.max(maxBottom, 0) + 'px';
 
     centers = tops.map((t, i) => t + heights[i] / 2);
     spans[c.id] = { top: Math.min(...tops), bottom: Math.max(...tops.map((t, i) => t + heights[i])) };
@@ -1575,6 +1589,9 @@ function layoutBracketTree(roundsEl, cols) {
 // draws the elbow connector from each feeding match's right edge into the
 // match it feeds, using the positions layoutBracketTree just computed
 function drawBracketConnectors(roundsEl, matches) {
+  const old = roundsEl.querySelector('.bracket-lines');
+  if (old) old.remove();
+
   const rootRect = roundsEl.getBoundingClientRect();
   const w = roundsEl.scrollWidth, h = roundsEl.scrollHeight;
 
@@ -1611,6 +1628,7 @@ function drawBracketConnectors(roundsEl, matches) {
 }
 
 let BRACKET_SPANS = {}, BRACKET_LABEL_H = 0, BRACKET_SCROLL_BOUND = false;
+let BRACKET_RENDER_COLS = null, BRACKET_MATCHES = null;
 
 function renderBracket() {
   const el = document.getElementById('bracket-rounds');
@@ -1628,10 +1646,8 @@ function renderBracket() {
       <div class="bracket-matches">${c.list.map(bracketMatchHtml).join('')}</div>
     </div>`).join('');
 
-  const layout = layoutBracketTree(el, cols);
-  BRACKET_SPANS = layout.spans;
-  BRACKET_LABEL_H = layout.labelH;
-  drawBracketConnectors(el, matches);
+  BRACKET_RENDER_COLS = cols;
+  BRACKET_MATCHES = matches;
 
   const activeId = renderBracketChrome(el, cols);
   applyBracketFocus(activeId);
@@ -1658,17 +1674,35 @@ function renderBracketChrome(el, cols) {
   return active;
 }
 
-// crops the scroll-wrap's height and shifts the tree vertically so the given
-// round's own matches fill the view — shrinking for later (sparser) rounds
-// and expanding again when scrolling back toward Round of 32.
+// Reloads the bracket layout anchored at the focused round: that round (and
+// everything before it) resets to compact flow — ignoring whatever height
+// the rounds to its left needed — while the round(s) after it cascade from
+// its fresh, tightly-packed positions. Then crops the scroll-wrap to the
+// focused round plus the tree it feeds, so it fills the view with no
+// leftover whitespace, shrinking further for each later round.
 function applyBracketFocus(rid) {
-  const span = BRACKET_SPANS[rid];
   const wrap = document.querySelector('.bracket-scroll-wrap');
   const roundsEl = document.getElementById('bracket-rounds');
-  if (!span || !wrap || !roundsEl) return;
+  const cols = BRACKET_RENDER_COLS;
+  if (!wrap || !roundsEl || !cols) return;
+
+  const focusIdx = Math.max(0, cols.findIndex(c => c.id === rid));
+  // the very last round has nothing after it to cascade forward into, so
+  // anchoring there would leave it (and its feeder) both independently
+  // compact with no real connection between them — anchor one round
+  // earlier instead so the last round still cascades in, properly aligned
+  const anchorIdx = Math.min(focusIdx, cols.length - 2);
+  const layout = layoutBracketTree(roundsEl, cols, anchorIdx);
+  BRACKET_SPANS = layout.spans;
+  BRACKET_LABEL_H = layout.labelH;
+  drawBracketConnectors(roundsEl, BRACKET_MATCHES || []);
+
+  const relevant = cols.slice(anchorIdx).map(c => BRACKET_SPANS[c.id]).filter(Boolean);
+  if (!relevant.length) return;
   const pad = 10;
-  const top = Math.max(0, span.top - BRACKET_LABEL_H - pad);
-  wrap.style.height = (span.bottom - top + pad) + 'px';
+  const top = Math.max(0, Math.min(...relevant.map(s => s.top)) - BRACKET_LABEL_H - pad);
+  const bottom = Math.max(...relevant.map(s => s.bottom));
+  wrap.style.height = (bottom - top + pad) + 'px';
   roundsEl.style.transform = `translateY(${-top}px)`;
   document.querySelectorAll('.bracket-tab').forEach(t => t.classList.toggle('active', t.dataset.r === rid));
 }
