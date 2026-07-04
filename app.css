@@ -130,11 +130,6 @@ main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex
 .hero-congrats-title { font-size: 1.05rem; font-weight: 800; line-height: 1.2; }
 .congrats-emoji { font-size: 1.9rem; line-height: 1; }
 .hero-detail { font-size: .82rem; color: var(--muted); margin-top: .2rem; }
-
-/* compact recap of the most recently completed knockout match */
-.hero-result { grid-template-columns: 1fr; padding: .85rem 1.2rem; text-align: center; }
-.hero-result .hero-eyebrow { margin-bottom: .35rem; font-size: .62rem; }
-.result-winner { color: var(--col-yellow); font-weight: 800; }
 .hero-streams { margin-top: .9rem; display: flex; flex-wrap: wrap; gap: .5rem; }
 
 /* countdown */

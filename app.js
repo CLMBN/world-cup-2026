@@ -2107,22 +2107,6 @@ function heroChampionHtml(teamName) {
       </div>`;
 }
 
-// compact recap of the most recently completed knockout match
-function heroResultCardHtml(m) {
-  const { border, bg } = heroTheme();
-  const roundLabel = T[LANG].roundLabels[m.round] || '';
-  const homeWon = normTeam(m.winnerName) === normTeam(m.home.name);
-  return `
-      <div class="hero hero-result" style="border-color:${border};background:${bg}">
-        <div class="hero-eyebrow">${roundLabel} · ${T[LANG].ft}</div>
-        <div class="hero-title" style="font-size:1.1rem;margin-bottom:0">
-          <span class="${homeWon ? 'result-winner' : ''}">${m.home.flag} ${m.home.name} ${m.home.score ?? '–'}</span>
-          <span style="color:var(--muted);font-weight:400">–</span>
-          <span class="${!homeWon ? 'result-winner' : ''}">${m.away.score ?? '–'} ${m.away.name} ${m.away.flag}</span>
-        </div>
-      </div>`;
-}
-
 // the match whose countdown the hero is currently showing (group, else knockout)
 function heroTargetMatch() {
   const matches = ACTIVE_TEAM === 'mexico' ? MEXICO_MATCHES : MATCHES;
@@ -2167,7 +2151,6 @@ function renderHero() {
 
   if (last && normTeam(last.winnerName) !== normTeam(teamName)) {
     html += heroEliminatedHtml(teamName, last);
-    html += heroResultCardHtml(last);
   } else if (current) {
     const roundLabel  = T[LANG].roundLabels[current.round] || '';
     const eyebrow     = last ? T[LANG].stageComplete(T[LANG].roundLabels[last.round]) : T[LANG].groupComplete;
@@ -2177,13 +2160,10 @@ function renderHero() {
     } else {
       html += `<div class="hero-detail" style="text-align:center">${T[LANG].knockoutTBD} — ${T[LANG].checkFIFA}</div>`;
     }
-    if (last) html += heroResultCardHtml(last);
   } else if (last && last.round === 'final') {
     html += heroChampionHtml(teamName);
-    html += heroResultCardHtml(last);
   } else if (last) {
     html += heroCongratsHtml(T[LANG].stageComplete(T[LANG].roundLabels[last.round]), T[LANG].checkFIFA);
-    html += heroResultCardHtml(last);
   }
 
   el.innerHTML = html + '</div>';
