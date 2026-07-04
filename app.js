@@ -2172,10 +2172,13 @@ function renderHero() {
 // group-stage matches + every knockout match the team's real slot has reached
 // (chronological — the definitive record of the team's whole tournament)
 function historyMatchesFor(team) {
-  const groupMatches = (team === 'mexico' ? MEXICO_MATCHES : MATCHES).map(m => ({ ...m, round: 'group' }));
-  const koMatches = knockoutRunFor(team).filter(m => m.kickoffUTC);
-  // most recent/next game first, oldest last — the next fixture (furthest in
-  // the future) naturally sorts to the top alongside the latest result
+  // completed games only — the upcoming/live fixture already has its own
+  // "Next Match" card up top, so repeating it here would be redundant
+  const groupMatches = (team === 'mexico' ? MEXICO_MATCHES : MATCHES)
+    .map(m => ({ ...m, round: 'group' }))
+    .filter(m => matchState(m.kickoffUTC) === 'final');
+  const koMatches = knockoutRunFor(team).filter(m => m.kickoffUTC && m.winnerName);
+  // most recent game first, oldest last
   return [...groupMatches, ...koMatches].sort((a, b) => new Date(b.kickoffUTC) - new Date(a.kickoffUTC));
 }
 
