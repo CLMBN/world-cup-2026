@@ -1543,6 +1543,35 @@ function bracketFeeders(matchNum) {
   return [tie.home, tie.away].map(ref => ref.w ?? ref.l).filter(n => n != null);
 }
 
+// FIFA numbers knockout matches by fixture calendar (date/venue), not by
+// bracket position — e.g. match 98 is Winner-93-v-Winner-94 while match 99
+// is Winner-91-v-Winner-92, so listing Round of 16 in plain match-number
+// order puts 91/92 ahead of 93/94 and makes their connector lines cross.
+// This derives each round's *display* order by walking the tree backward
+// from the Final so a round's pairs land adjacent to, and in the same
+// order as, the next-round match they feed — matching ESPN's bracket —
+// without renumbering or re-dating anything.
+function bracketDisplayOrder(cols, matches) {
+  const orderedNums = {};
+  for (let i = cols.length - 1; i >= 0; i--) {
+    const c = cols[i];
+    const natural = c.rounds.flatMap(r => matches.filter(m => m.round === r).map(m => m.m));
+    if (i === cols.length - 1) { orderedNums[c.id] = natural; continue; }
+
+    const nextNums = orderedNums[cols[i + 1].id];
+    const seen = new Set();
+    const order = [];
+    nextNums.forEach(num => {
+      bracketFeeders(num).forEach(fn => {
+        if (!seen.has(fn) && natural.includes(fn)) { seen.add(fn); order.push(fn); }
+      });
+    });
+    natural.forEach(n => { if (!seen.has(n)) { seen.add(n); order.push(n); } }); // safety net
+    orderedNums[c.id] = order;
+  }
+  return orderedNums;
+}
+
 const BRACKET_CARD_GAP = 7; // px — matches .bracket-matches's .45rem gap
 
 // Positions every round after anchorIdx at the exact vertical midpoint of
@@ -1664,10 +1693,13 @@ function renderBracket() {
   if (!el) return;
 
   const matches = buildKnockout();
+  const matchByNum = {};
+  matches.forEach(m => { matchByNum[m.m] = m; });
+  const order = bracketDisplayOrder(BRACKET_COLS, matches);
   const cols = BRACKET_COLS.map(c => ({
     id: c.id,
     label: T[LANG].roundLabels[c.id] || c.id.toUpperCase(),
-    list: c.rounds.flatMap(r => matches.filter(m => m.round === r)),
+    list: order[c.id].map(num => matchByNum[num]),
   }));
 
   el.innerHTML = cols.map(c => `<div class="bracket-round" id="brk-col-${c.id}">
