@@ -239,6 +239,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex
 .p-name { font-size: .88rem; font-weight: 600; }
 .p-club { font-size: .7rem; color: var(--muted); margin-top: .1rem; }
 .p-stat { font-size: .68rem; color: var(--green); margin-top: .35rem; font-weight: 600; }
+.p-card { font-size: .68rem; color: var(--orange); margin-top: .35rem; font-weight: 600; }
 
 /* ── NEWS ───────────────────────────────────────── */
 .news-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap: .7rem; }

@@ -85,6 +85,7 @@ const T = {
     fullSquad:       'Full 26-man squad on',
     matchStatsLocal: 'Match stats available via local server',
     wcGoals:         (n) => `${n} goal${n === 1 ? '' : 's'} this World Cup`,
+    wcCards:         (n) => `${n} yellow card${n === 1 ? '' : 's'} this World Cup`,
   },
   es: {
     appTitle:        'Copa Mundial 2026',
@@ -167,6 +168,7 @@ const T = {
     fullSquad:       'Plantilla completa en',
     matchStatsLocal: 'Estadísticas disponibles en servidor local',
     wcGoals:         (n) => `${n} gol${n === 1 ? '' : 'es'} en este Mundial`,
+    wcCards:         (n) => `${n} tarjeta${n === 1 ? '' : 's'} amarilla${n === 1 ? '' : 's'} en este Mundial`,
   },
 };
 
@@ -750,6 +752,20 @@ function parseGoalDetails(details, homeTeamLower, awayTeamLower) {
     }).filter(Boolean);
 }
 
+function parseCardDetails(details) {
+  return (details || [])
+    .map(d => {
+      const typeText = (d.type?.text || d.type?.id || '').toLowerCase();
+      const isYellow = d.yellowCard === true || typeText.includes('yellow');
+      const isRed    = d.redCard === true || typeText.includes('red');
+      if (!isYellow && !isRed) return null;
+      const involved = d.athletesInvolved || [];
+      const name = involved[0]?.displayName || involved[0]?.shortName || involved[0]?.fullName;
+      if (!name) return null;
+      return { name: shortenName(name), isRed };
+    }).filter(Boolean);
+}
+
 function shortenName(full) {
   if (!full || full === '?') return full;
   const parts = full.trim().split(/\s+/);
@@ -816,6 +832,7 @@ function parseSummary(data, homeKeyLower, awayKeyLower) {
   // Primary: header.competitions[0].details — ESPN summary reliably has athletesInvolved here
   const headerDetails = data.header?.competitions?.[0]?.details || [];
   let scorers = parseGoalDetails(headerDetails, homeKeyLower, awayKeyLower);
+  const cards = parseCardDetails(headerDetails);
 
   // Fallback: scoringPlays (structure varies by endpoint/league)
   if (scorers.length === 0) {
@@ -849,9 +866,10 @@ function parseSummary(data, homeKeyLower, awayKeyLower) {
   });
 
   const key = `${homeKeyLower}|${awayKeyLower}`;
-  if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {} };
+  if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {}, cards: [] };
   const hasNamedScorers = MATCH_SUMMARIES[key].scorers.some(s => s.name && s.name !== '?');
   if (scorers.length > 0 && !hasNamedScorers) MATCH_SUMMARIES[key].scorers = scorers;
+  if (cards.length > 0 && !(MATCH_SUMMARIES[key].cards || []).length) MATCH_SUMMARIES[key].cards = cards;
   MATCH_SUMMARIES[key].statsByTeam = statsByTeam;
 }
 
@@ -971,6 +989,20 @@ function goalsForPlayer(team, playerName) {
   return count;
 }
 
+// tallies yellow cards picked up this World Cup, same name-matching approach
+function cardsForPlayer(team, playerName) {
+  const last = rosterKey(playerName);
+  if (!last) return 0;
+  let count = 0;
+  Object.entries(MATCH_SUMMARIES).forEach(([key, summary]) => {
+    if (!key.split('|').includes(team)) return;
+    (summary.cards || []).forEach(c => {
+      if (!c.isRed && rosterKey(c.name) === last) count++;
+    });
+  });
+  return count;
+}
+
 async function fetchESPN() {
   try {
     const todayDate    = todayESPNDate();
@@ -1066,13 +1098,15 @@ function parseScoreboard(data) {
       display:    { [hn]: home.team?.displayName || hn, [an]: away.team?.displayName || an },
     };
 
-    // For completed games, extract goal scorers from competition details
+    // For completed games, extract goal scorers and cards from competition details
     if (ev.status?.type?.state === 'post') {
       const key = `${hn}|${an}`;
       const scorers = parseGoalDetails(comp.details, hn, an);
-      if (scorers.length > 0) {
-        if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {} };
-        MATCH_SUMMARIES[key].scorers = scorers;
+      const cards = parseCardDetails(comp.details);
+      if (scorers.length > 0 || cards.length > 0) {
+        if (!MATCH_SUMMARIES[key]) MATCH_SUMMARIES[key] = { scorers: [], statsByTeam: {}, cards: [] };
+        if (scorers.length > 0) MATCH_SUMMARIES[key].scorers = scorers;
+        if (cards.length > 0) MATCH_SUMMARIES[key].cards = cards;
       }
     }
   });
@@ -2460,6 +2494,7 @@ function renderSquad() {
   document.getElementById('squad').innerHTML = players.map(p => {
     const jersey = rosterEntry(ACTIVE_TEAM, p.name)?.jersey;
     const goals  = goalsForPlayer(ACTIVE_TEAM, p.name);
+    const cards  = cardsForPlayer(ACTIVE_TEAM, p.name);
     return `
     <div class="player">
       <div class="p-top">
@@ -2469,6 +2504,7 @@ function renderSquad() {
       <div class="p-name">${p.name}</div>
       <div class="p-club">${p.club}</div>
       ${goals > 0 ? `<div class="p-stat">⚽ ${T[LANG].wcGoals(goals)}</div>` : ''}
+      ${cards > 0 ? `<div class="p-card">🟨 ${T[LANG].wcCards(cards)}</div>` : ''}
     </div>`;
   }).join('');
   const sf = document.getElementById('squad-footer');
