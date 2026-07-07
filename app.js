@@ -85,7 +85,7 @@ const T = {
     fullSquad:       'Full 26-man squad on',
     matchStatsLocal: 'Match stats available via local server',
     wcGoals:         (n) => `${n} goal${n === 1 ? '' : 's'} this World Cup`,
-    wcCards:         (n) => `${n} yellow card${n === 1 ? '' : 's'} this World Cup`,
+    cardLastMatch:   'Yellow card in last match',
   },
   es: {
     appTitle:        'Copa Mundial 2026',
@@ -168,7 +168,7 @@ const T = {
     fullSquad:       'Plantilla completa en',
     matchStatsLocal: 'Estadísticas disponibles en servidor local',
     wcGoals:         (n) => `${n} gol${n === 1 ? '' : 'es'} en este Mundial`,
-    wcCards:         (n) => `${n} tarjeta${n === 1 ? '' : 's'} amarilla${n === 1 ? '' : 's'} en este Mundial`,
+    cardLastMatch:   'Tarjeta amarilla en el partido anterior',
   },
 };
 
@@ -989,18 +989,26 @@ function goalsForPlayer(team, playerName) {
   return count;
 }
 
-// tallies yellow cards picked up this World Cup, same name-matching approach
-function cardsForPlayer(team, playerName) {
-  const last = rosterKey(playerName);
-  if (!last) return 0;
-  let count = 0;
-  Object.entries(MATCH_SUMMARIES).forEach(([key, summary]) => {
-    if (!key.split('|').includes(team)) return;
-    (summary.cards || []).forEach(c => {
-      if (!c.isRed && rosterKey(c.name) === last) count++;
-    });
+// the team's most recently completed match — a card picked up here is the
+// one that actually carries suspension risk into the team's current game
+function lastCompletedMatch(team) {
+  let best = null;
+  Object.values(EVENT_BY_PAIR).forEach(ev => {
+    if (ev.state !== 'post' || !ev.teams?.includes(team)) return;
+    if (!best || new Date(ev.kickoffUTC) > new Date(best.kickoffUTC)) best = ev;
   });
-  return count;
+  return best;
+}
+
+// was this player carded in the team's last completed match?
+function cardedLastMatch(team, playerName) {
+  const last = rosterKey(playerName);
+  if (!last) return false;
+  const match = lastCompletedMatch(team);
+  if (!match) return false;
+  const summary = MATCH_SUMMARIES[`${match.teams[0]}|${match.teams[1]}`];
+  if (!summary) return false;
+  return (summary.cards || []).some(c => !c.isRed && rosterKey(c.name) === last);
 }
 
 async function fetchESPN() {
@@ -2494,7 +2502,7 @@ function renderSquad() {
   document.getElementById('squad').innerHTML = players.map(p => {
     const jersey = rosterEntry(ACTIVE_TEAM, p.name)?.jersey;
     const goals  = goalsForPlayer(ACTIVE_TEAM, p.name);
-    const cards  = cardsForPlayer(ACTIVE_TEAM, p.name);
+    const carded = cardedLastMatch(ACTIVE_TEAM, p.name);
     return `
     <div class="player">
       <div class="p-top">
@@ -2504,7 +2512,7 @@ function renderSquad() {
       <div class="p-name">${p.name}</div>
       <div class="p-club">${p.club}</div>
       ${goals > 0 ? `<div class="p-stat">⚽ ${T[LANG].wcGoals(goals)}</div>` : ''}
-      ${cards > 0 ? `<div class="p-card">🟨 ${T[LANG].wcCards(cards)}</div>` : ''}
+      ${carded ? `<div class="p-card">🟨 ${T[LANG].cardLastMatch}</div>` : ''}
     </div>`;
   }).join('');
   const sf = document.getElementById('squad-footer');
