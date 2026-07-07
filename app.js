@@ -777,7 +777,35 @@ async function fetchSummariesFromEvents(events) {
   }));
 }
 
+// ESPN's match-summary payload carries each side's full matchday squad
+// (lineup + bench) with shirt numbers under a few different possible keys
+// depending on endpoint/league — try them all and keep whatever's found
+function ingestSummaryRosters(data) {
+  const groups = data.rosters || data.boxscore?.rosters || data.lineups || [];
+  (groups || []).forEach(g => {
+    const teamName = (g.team?.displayName || g.team?.name || '').toLowerCase();
+    const teamKey = teamName === 'colombia' ? 'colombia' : teamName === 'mexico' ? 'mexico' : null;
+    if (!teamKey) return;
+    const entries = g.roster || g.athletes || g.players || [];
+    if (!entries.length) return;
+    const map = ROSTER[teamKey] instanceof Map ? ROSTER[teamKey] : new Map();
+    entries.forEach(entry => {
+      const athlete = entry.athlete || entry.player || entry;
+      const name   = athlete.displayName || athlete.fullName || '';
+      const jersey = entry.jersey || athlete.jersey || null;
+      if (!name || !jersey) return;
+      const full = normPlayerName(name);
+      const last = rosterKey(name);
+      const rec  = { jersey, position: (athlete.position || entry.position)?.abbreviation || null };
+      if (full) map.set(full, rec);
+      if (last && !map.has(last)) map.set(last, rec);
+    });
+    if (map.size) ROSTER[teamKey] = map;
+  });
+}
+
 function parseSummary(data, homeKeyLower, awayKeyLower) {
+  ingestSummaryRosters(data);
   // Use boxscore to reliably identify home vs away team names
   const boxTeams = data.boxscore?.teams || [];
   const homeBoxTeam = boxTeams.find(t => t.homeAway === 'home');
