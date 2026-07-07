@@ -84,6 +84,7 @@ const T = {
     qualifyNote:     'Top 2 qualify · Best 3rd-place teams also advance',
     fullSquad:       'Full 26-man squad on',
     matchStatsLocal: 'Match stats available via local server',
+    wcGoals:         (n) => `${n} goal${n === 1 ? '' : 's'} this World Cup`,
   },
   es: {
     appTitle:        'Copa Mundial 2026',
@@ -165,6 +166,7 @@ const T = {
     qualifyNote:     'Los 2 mejores clasifican · Los mejores 3eros también avanzan',
     fullSquad:       'Plantilla completa en',
     matchStatsLocal: 'Estadísticas disponibles en servidor local',
+    wcGoals:         (n) => `${n} gol${n === 1 ? '' : 'es'} en este Mundial`,
   },
 };
 
@@ -883,6 +885,64 @@ function liveScoreFor(match) {
 const SB_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=200&dates=20260611-20260720';
 const ST_URL = 'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings';
 
+// Same ESPN team IDs already used for the team-profile links in NEWS/MEXICO_NEWS
+const TEAM_ESPN_ID = { colombia: '116', mexico: '164' };
+let ROSTER = { colombia: null, mexico: null }; // team → Map(normalized name → {jersey, position})
+
+function normPlayerName(name) {
+  return (name || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[©*]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, '')
+    .trim();
+}
+
+function rosterKey(name) {
+  const parts = normPlayerName(name).split(/\s+/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : '';
+}
+
+async function fetchRoster(team) {
+  if (ROSTER[team]) return;
+  try {
+    const id = TEAM_ESPN_ID[team];
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/teams/${id}?enable=roster`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const map = new Map();
+    (data.team?.athletes || []).forEach(a => {
+      const full = normPlayerName(a.displayName || a.fullName || '');
+      const last = rosterKey(a.displayName || a.fullName || '');
+      const rec  = { jersey: a.jersey || null, position: a.position?.abbreviation || null };
+      if (full) map.set(full, rec);
+      if (last && !map.has(last)) map.set(last, rec);
+    });
+    ROSTER[team] = map;
+  } catch (_) { /* squad cards fall back to no jersey number */ }
+}
+
+function rosterEntry(team, playerName) {
+  const map = ROSTER[team];
+  if (!map) return null;
+  return map.get(normPlayerName(playerName)) || map.get(rosterKey(playerName)) || null;
+}
+
+// tallies goals scored this World Cup by matching scorer names already
+// parsed into MATCH_SUMMARIES against each key player's surname
+function goalsForPlayer(team, playerName) {
+  const last = rosterKey(playerName);
+  if (!last) return 0;
+  let count = 0;
+  Object.entries(MATCH_SUMMARIES).forEach(([key, summary]) => {
+    if (!key.split('|').includes(team)) return;
+    (summary.scorers || []).forEach(s => {
+      if (!s.isOG && rosterKey(s.name) === last) count++;
+    });
+  });
+  return count;
+}
+
 async function fetchESPN() {
   try {
     const todayDate    = todayESPNDate();
@@ -935,6 +995,9 @@ async function fetchESPN() {
     }
     const seenIds = new Set();
     await fetchSummariesFromEvents(summaryEvents.filter(ev => seenIds.has(ev.id) ? false : seenIds.add(ev.id)));
+
+    await Promise.all([fetchRoster('colombia'), fetchRoster('mexico')]);
+    renderSquad();
 
     hideAlert();
   } catch (e) {
@@ -2366,12 +2429,20 @@ function renderStreams() {
 
 function renderSquad() {
   const players = ACTIVE_TEAM === 'mexico' ? MEXICO_PLAYERS : PLAYERS;
-  document.getElementById('squad').innerHTML = players.map(p => `
+  document.getElementById('squad').innerHTML = players.map(p => {
+    const jersey = rosterEntry(ACTIVE_TEAM, p.name)?.jersey;
+    const goals  = goalsForPlayer(ACTIVE_TEAM, p.name);
+    return `
     <div class="player">
-      <div class="p-pos">${p.pos}</div>
+      <div class="p-top">
+        <div class="p-pos">${p.pos}</div>
+        ${jersey ? `<div class="p-num">#${jersey}</div>` : ''}
+      </div>
       <div class="p-name">${p.name}</div>
       <div class="p-club">${p.club}</div>
-    </div>`).join('');
+      ${goals > 0 ? `<div class="p-stat">⚽ ${T[LANG].wcGoals(goals)}</div>` : ''}
+    </div>`;
+  }).join('');
   const sf = document.getElementById('squad-footer');
   if (sf) {
     if (ACTIVE_TEAM === 'mexico') {

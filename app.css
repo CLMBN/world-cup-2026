@@ -233,9 +233,12 @@ main { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1.5rem; display: flex
 /* ── SQUAD ──────────────────────────────────────── */
 .squad-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(155px,1fr)); gap: .7rem; }
 .player { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: .8rem; }
-.p-pos { font-size: .58rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--col-yellow); margin-bottom: .2rem; }
+.p-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: .2rem; }
+.p-pos { font-size: .58rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--col-yellow); }
+.p-num { font-size: .72rem; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
 .p-name { font-size: .88rem; font-weight: 600; }
 .p-club { font-size: .7rem; color: var(--muted); margin-top: .1rem; }
+.p-stat { font-size: .68rem; color: var(--green); margin-top: .35rem; font-weight: 600; }
 
 /* ── NEWS ───────────────────────────────────────── */
 .news-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap: .7rem; }
